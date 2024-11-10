@@ -215,7 +215,7 @@ handle_device() {
 
 check_running_as_root() {
   if [ "$(id -un)" != 'root' ]; then
-    quit_err_msg_with_help "must run this script as root for this operation" 1
+    quit_with_err_msg "must run this script as root for this operation" 1
   fi
 }
 
