@@ -1,0 +1,3 @@
+# for commands that require specifying a pool, use this pool as the default
+cfg_zfs_default_pool: 'zroot'
+

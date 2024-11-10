@@ -1,0 +1,193 @@
+#!/bin/sh
+# vim: set filetype=sh:
+
+################################################################################
+# Purpose:   Provide helper script for working with ZFS pools and datasets
+# Args/Opts: See usage (run with -h option).
+# Meta:      Script installed by ansible {{ role_name | basename }}.
+# Style:     ENV_VAR, GLOBAL_VAR, GLOBAL_READONLY_VAR, func_local_var, my_func
+################################################################################
+
+# GLOBAL VARS:
+
+# Constants
+PROG_NAME="$(basename "${0}")"
+readonly PROG_NAME
+DEFAULT_POOL='{{ cfg_zfs_default_pool }}'
+readonly DEFAULT_POOL
+
+# Mutable User Cmd Option Selections
+PRINT_HELP_MENU='false'
+SHOW_POOLS_STATUS='false'
+POOL="${DEFAULT_POOL}"
+
+# LOCAL FUNCTIONS:
+
+print_usage() {
+  prog_name_num_chars="$(printf "%s" "${PROG_NAME}" | wc -m)"
+  leading_indent=''
+  i=0
+  while [ "${i}" -lt "${prog_name_num_chars}" ]; do
+    leading_indent="${leading_indent} "
+    i=$((i + 1))
+  done
+
+  printf "USAGE:\n"
+  printf "  %s  -h\n" "${PROG_NAME}"
+  printf "  %s  -s\n" "${PROG_NAME}"
+  printf "OPTIONS:\n"
+  printf "  -h, --help\n"
+  printf "      print this help message\n"
+  printf "  -s, --show-pools-status\n"
+  printf "      show status of all pools, along with their vdevs and devices\n"
+  printf "  -P <pool_name>, --pool=<pool_name>\n"
+  printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
+  printf "EXIT CODES:\n"
+  printf "    0  ok\n"
+  printf "    1  one or more devices in a pool's vdev is not online\n"
+  printf "    5  zfs status/list error\n"
+  printf "  255  unknown error\n"
+}
+
+get_cmd_opts() {
+  while getopts ':hsP:-:' option; do
+    short_opt_arg="${OPTARG}"
+    case "${option}" in
+      h)  handle_print_help_menu ;;
+      s)  handle_show_pools_status ;;
+      P)  handle_pool "${short_opt_arg}" ;;
+      -)  long_opt_name="${OPTARG}"
+          long_opt_arg="${OPTARG#*=}"
+          case ${long_opt_name} in
+            help)                                   handle_print_help_menu ;;
+            help=*)                                 handle_illegal_long_option_arg "${long_opt_name}" ;;
+            show-pools-status)                      handle_show_pools_status ;;
+            show-pools-status=*)                    handle_illegal_long_option_arg "${long_opt_name}" ;;
+            pool=?*)                                handle_pool "${long_opt_arg}" ;;
+            pool*)                                  handle_missing_long_option_arg "${long_opt_name}" ;;
+            '')                                     break ;; # non-option arg starting with '-'
+            *)                                      handle_unknown_option "${long_opt_name}" ;;
+          esac ;;
+      \?) handle_unknown_option "${short_opt_arg}" ;;
+    esac
+  done
+}
+
+exit_with_cleanup() {
+  err_code="${1}"
+  exit "${err_code}"
+}
+
+print_err_msg() {
+  err_msg="${1}"
+  printf "ERROR:\n%s: %s\n" "${PROG_NAME}" "${err_msg}"
+}
+
+quit_with_err_msg() {
+  err_msg="${1}"
+  err_code="${2}"
+  print_err_msg "${err_msg}"
+  exit_with_cleanup "${err_code}"
+}
+
+quit_if_rc_not_zero() {
+  cmd_exit_code="${1}"
+  err_msg="${2}"
+  script_exit_code="${3}"
+  if [ "${cmd_exit_code}" != 0  ]; then
+    quit_with_err_msg "${err_msg}" "${script_exit_code}"
+  fi
+}
+
+try_silent_with_exit() {
+  cmd="${1}"
+  err_msg="${2}"
+  err_code="${3}"
+
+  eval "${cmd}"
+  exit_code="${?}"
+  if [ "${exit_code}" != 0 ]; then
+    quit_with_err_msg "${err_msg}" "${err_code}"
+  fi
+}
+
+handle_unknown_option() {
+  short_opt_letter_or_long_opt_name="${1}"
+  err_msg="unknown option \"${short_opt_letter_or_long_opt_name}\""
+  quit_with_err_msg "${err_msg}" 5
+}
+
+handle_illegal_long_option_arg() {
+  long_opt_name="${1}"
+  err_msg="illegal argument in \"${long_opt_name}\""
+  quit_with_err_msg "${err_msg}" 5
+}
+
+handle_missing_long_option_arg() {
+  long_opt_name="${1}"
+  err_msg="missing argument for option \"${long_opt_name}\""
+  quit_with_err_msg "${err_msg}" 5
+}
+
+handle_print_help_menu() {
+  if [ "${SHOW_POOLS_STATUS}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  PRINT_HELP_MENU='true'
+}
+
+handle_show_pools_status() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  SHOW_POOLS_STATUS='true'
+}
+
+handle_pool() {
+  POOL="${1}"
+}
+
+do_print_help_menu() {
+  print_usage
+}
+
+do_show_pools_status() {
+  pools_status="$(zpool list -L -P -v)"
+  quit_if_rc_not_zero "${?}" "error getting zpool status" 5
+  printf "%s\n" "----------------------------------"
+  printf "Status of all pools, along with their vdevs and devices:\n"
+  printf "%s\n" "${pools_status}"
+
+  device_guids="$(zpool get -H -o name,value guid "${POOL}" all-vdevs)"
+  quit_if_rc_not_zero "${?}" "error getting device GUIDs" 5
+  printf "%s\n" "---------------------------------------"
+  printf "GUIDs of all pools, vdevs, and devices:\n"
+  printf "%s\n" "${device_guids}"
+
+  pools_health="$(zpool get -H -o value health)"
+  quit_if_rc_not_zero "${?}" "error getting zpool health" 5
+  if [ "${pools_health}" != 'ONLINE' ]; then
+    quit_with_err_msg "one or more devices in a pool's vdev is not online" 1
+  fi
+}
+
+# MAIN SCRIPT:
+
+main() {
+  get_cmd_opts "$@"
+  set_user_keypairs_dir_path
+  create_user_keypairs_dir_if_not_exist
+
+  if [ "${PRINT_HELP_MENU}" = 'true' ]; then
+    do_print_help_menu
+  elif [ "${SHOW_POOLS_STATUS}" = 'true' ]; then
+    do_show_pools_status
+  else
+    quit_with_err_msg "no valid option selected" 5
+  fi
+
+  exit_with_cleanup 0
+}
+
+main "$@"
+
