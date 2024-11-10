@@ -19,7 +19,11 @@ readonly DEFAULT_POOL
 # Mutable User Cmd Option Selections
 PRINT_HELP_MENU='false'
 SHOW_POOLS_STATUS='false'
+REMOVE_DEVICE_FROM_POOL='false'
+OFFLINE_DEVICE_FROM_POOL='false'
+ONLINE_DEVICE_INTO_POOL='false'
 POOL="${DEFAULT_POOL}"
+DEVICE=""
 
 # LOCAL FUNCTIONS:
 
@@ -35,26 +39,40 @@ print_usage() {
   printf "USAGE:\n"
   printf "  %s  -h\n" "${PROG_NAME}"
   printf "  %s  -s\n" "${PROG_NAME}"
+  printf "  sudo  %s  -r                          -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  sudo  %s  --offline-device-from-pool  -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  sudo  %s  --online-device-into-pool   -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "OPTIONS:\n"
   printf "  -h, --help\n"
   printf "      print this help message\n"
   printf "  -s, --show-pools-status\n"
   printf "      show status of all pools, along with their vdevs and devices\n"
+  printf "  -r, --remove-device-from-pool\n"
+  printf "      remove a (possibly bad) device from a pool (offlines + detaches device)\n"
+  printf "  --offline-device-from-pool\n"
+  printf "      offline a device, without detaching it from a pool\n"
+  printf "  --online-device-into-pool\n"
+  printf "      online an offline device, making it an active part of a pool\n"
+  printf "  -C <device_name>, --device=<device_name>\n"
+  printf "      a zfs device (e.g. whole disk '/dev/ada0', partition '/dev/ada0p1', GELI '/dev/ada0p4.eli')\n"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
   printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
   printf "    0  ok\n"
   printf "    1  one or more devices in a pool's vdev is not online\n"
   printf "    5  zfs status/list error\n"
+  printf "    10 zfs device removal error\n"
   printf "  255  unknown error\n"
 }
 
 get_cmd_opts() {
-  while getopts ':hsP:-:' option; do
+  while getopts ':hsrC:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
       s)  handle_show_pools_status ;;
+      r)  handle_remove_device_from_pool ;;
+      C)  handle_device "${short_opt_arg}" ;;
       P)  handle_pool "${short_opt_arg}" ;;
       -)  long_opt_name="${OPTARG}"
           long_opt_arg="${OPTARG#*=}"
@@ -63,6 +81,14 @@ get_cmd_opts() {
             help=*)                                 handle_illegal_long_option_arg "${long_opt_name}" ;;
             show-pools-status)                      handle_show_pools_status ;;
             show-pools-status=*)                    handle_illegal_long_option_arg "${long_opt_name}" ;;
+            remove-device-from-pool)                handle_remove_device_from_pool ;;
+            remove-device-from-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
+            offline-device-from-pool)               handle_offline_device_from_pool ;;
+            offline-device-from-pool=*)             handle_illegal_long_option_arg "${long_opt_name}" ;;
+            online-device-into-pool)                handle_online_device_into_pool ;;
+            online-device-into-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
+            device=?*)                              handle_device "${long_opt_arg}" ;;
+            device*)                                handle_missing_long_option_arg "${long_opt_name}" ;;
             pool=?*)                                handle_pool "${long_opt_arg}" ;;
             pool*)                                  handle_missing_long_option_arg "${long_opt_name}" ;;
             '')                                     break ;; # non-option arg starting with '-'
@@ -130,21 +156,73 @@ handle_missing_long_option_arg() {
 }
 
 handle_print_help_menu() {
-  if [ "${SHOW_POOLS_STATUS}" = 'true' ]; then
+  if [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
+     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
   PRINT_HELP_MENU='true'
 }
 
 handle_show_pools_status() {
-  if [ "${PRINT_HELP_MENU}" = 'true' ]; then
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
   SHOW_POOLS_STATUS='true'
 }
 
+handle_remove_device_from_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  REMOVE_DEVICE_FROM_POOL='true'
+}
+
+handle_offline_device_from_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
+     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  OFFLINE_DEVICE_FROM_POOL='true'
+}
+
+handle_online_device_into_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
+     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  ONLINE_DEVICE_INTO_POOL='true'
+}
+
 handle_pool() {
   POOL="${1}"
+}
+
+handle_device() {
+  DEVICE="${1}"
+}
+
+check_running_as_root() {
+  if [ "$(id -un)" != 'root' ]; then
+    quit_err_msg_with_help "must run this script as root for this operation" 1
+  fi
+}
+
+check_device_option() {
+  if [ "${DEVICE}" = '' ]; then
+    quit_with_err_msg "\"--device\" option must be specified" 1
+  fi
 }
 
 do_print_help_menu() {
@@ -164,6 +242,41 @@ do_show_pools_status() {
   fi
 }
 
+do_remove_device_from_pool() {
+  check_running_as_root
+  check_device_option
+
+  do_offline_device_from_pool
+
+  detach_cmd="zpool detach ${POOL} ${DEVICE}"
+  printf "Detaching device with \"%s\"\n" "${detach_cmd}..."
+  try_silent_with_exit \
+    "${detach_cmd}" \
+    "error attempting to detach ${DEVICE}" 10
+}
+
+do_offline_device_from_pool() {
+  check_running_as_root
+  check_device_option
+
+  offline_cmd="zpool offline ${POOL} ${DEVICE}"
+  printf "Offlining device with \"%s\"\n" "${offline_cmd}..."
+  try_silent_with_exit \
+    "${offline_cmd}" \
+    "error attempting to offline ${DEVICE}" 10
+}
+
+do_online_device_into_pool() {
+  check_running_as_root
+  check_device_option
+
+  online_cmd="zpool online ${POOL} ${DEVICE}"
+  printf "Onlining device with \"%s\"\n" "${online_cmd}..."
+  try_silent_with_exit \
+    "${online_cmd}" \
+    "error attempting to online ${DEVICE}" 10
+}
+
 # MAIN SCRIPT:
 
 main() {
@@ -173,6 +286,12 @@ main() {
     do_print_help_menu
   elif [ "${SHOW_POOLS_STATUS}" = 'true' ]; then
     do_show_pools_status
+  elif [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ]; then
+    do_remove_device_from_pool
+  elif [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
+    do_offline_device_from_pool
+  elif [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
+    do_online_device_into_pool
   else
     quit_with_err_msg "no valid option selected" 5
   fi
