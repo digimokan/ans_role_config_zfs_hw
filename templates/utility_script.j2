@@ -154,7 +154,7 @@ do_print_help_menu() {
 do_show_pools_status() {
   pools_status="$(zpool list -L -P -v)"
   quit_if_rc_not_zero "${?}" "error getting zpool status" 5
-  printf "%s\n" "----------------------------------"
+  printf "%s\n" "--------------------------------------------------------"
   printf "Status of all pools, along with their vdevs and devices:\n"
   printf "%s\n" "${pools_status}"
 
