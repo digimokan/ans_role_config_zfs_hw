@@ -249,7 +249,7 @@ do_remove_device_from_pool() {
   do_offline_device_from_pool
 
   detach_cmd="zpool detach ${POOL} ${DEVICE}"
-  printf "Detaching device with \"%s\"\n" "${detach_cmd}..."
+  printf "Detaching device with \"%s\"...\n" "${detach_cmd}"
   try_silent_with_exit \
     "${detach_cmd}" \
     "error attempting to detach ${DEVICE}" 10
@@ -260,7 +260,7 @@ do_offline_device_from_pool() {
   check_device_option
 
   offline_cmd="zpool offline ${POOL} ${DEVICE}"
-  printf "Offlining device with \"%s\"\n" "${offline_cmd}..."
+  printf "Offlining device with \"%s\"...\n" "${offline_cmd}"
   try_silent_with_exit \
     "${offline_cmd}" \
     "error attempting to offline ${DEVICE}" 10
@@ -271,7 +271,7 @@ do_online_device_into_pool() {
   check_device_option
 
   online_cmd="zpool online ${POOL} ${DEVICE}"
-  printf "Onlining device with \"%s\"\n" "${online_cmd}..."
+  printf "Onlining device with \"%s\"...\n" "${online_cmd}"
   try_silent_with_exit \
     "${online_cmd}" \
     "error attempting to online ${DEVICE}" 10
