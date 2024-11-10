@@ -175,8 +175,6 @@ do_show_pools_status() {
 
 main() {
   get_cmd_opts "$@"
-  set_user_keypairs_dir_path
-  create_user_keypairs_dir_if_not_exist
 
   if [ "${PRINT_HELP_MENU}" = 'true' ]; then
     do_print_help_menu
