@@ -314,7 +314,7 @@ validate_partition_without_extension() {
   partition_basename="${1}"
 
   try_silent_with_exit \
-    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${partition_basename}" \
+    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${partition_basename} 1> /dev/null 2>&1" \
     "\"${partition_basename}\" must be a valid partition" 128
 }
 
@@ -619,7 +619,7 @@ attach_new_zfs_part_to_existing_mirror_part() {
   printf "and can take 10 - 30 minutes, depending on disk size.\n"
   try_silent_print_with_exit \
     "zpool attach -w ${pool} \"${existing_zfs_part_device_path}\" \"${new_zfs_part_path}\"" \
-    "attaching new zfs device to existing zfs device, to create or extend the mirror" 60
+    "attaching new zfs device to existing zfs device, to create or extend the mirror," 60
 }
 
 do_print_help_menu() {
