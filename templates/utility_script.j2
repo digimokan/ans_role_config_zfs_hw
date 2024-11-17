@@ -367,7 +367,7 @@ validate_zfs_geli_ecrypted_partition() {
   err_msg="${2}"
 
   try_silent_with_exit \
-    "geli status \"${path_to_zfs_geli_enc_part}\"" \
+    "geli status \"${path_to_zfs_geli_enc_part}\" 1> /dev/null 2>&1" \
     "${err_msg}" 128
 }
 
