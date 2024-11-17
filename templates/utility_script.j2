@@ -322,7 +322,7 @@ validate_active_device_in_vdev() {
   device="${1}"
 
   try_silent_with_exit \
-    "zpool list -v -P | grep --regexp=\"\s${device}\s\"" \
+    "zpool list -v -P | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
     "${device} must be an active zfs device in a vdev" 128
 }
 
