@@ -345,27 +345,30 @@ validate_item_is_not_full_disk() {
 validate_file_has_extension() {
   filename_or_file_path="${1}"
   file_extension="${2}"
+  err_msg="${3}"
 
   try_silent_with_exit \
     "test \"${filename_or_file_path##*.}\" = \"${file_extension}\"" \
-    "\"${filename_or_file_path}\" should have extension \".${file_extension}\"" 128
+    "${err_msg}" 128
 }
 
 validate_file_has_no_extension() {
   filename_or_file_path="${1}"
+  err_msg="${2}"
 
   filename_or_file_path_ext_removed="${filename_or_file_path%.*}"
   try_silent_with_exit \
     "test \"${filename_or_file_path_ext_removed}\" = \"${filename_or_file_path}\"" \
-    "\"${filename_or_file_path}\" should not have any extension" 128
+    "${err_msg}" 128
 }
 
 validate_zfs_geli_ecrypted_partition() {
   path_to_zfs_geli_enc_part="${1}"
+  err_msg="${2}"
 
   try_silent_with_exit \
     "geli status \"${path_to_zfs_geli_enc_part}\"" \
-    "\"${path_to_zfs_geli_enc_part}\" is not a valid GELI-encrypted zfs partition" 128
+    "${err_msg}" 128
 }
 
 check_running_as_root() {
@@ -408,10 +411,17 @@ check_pool_is_root_pool() {
 
 check_encrypt_pswd_option_supplied_if_req() {
   if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
-    validate_file_has_no_extension "${ZFS_PART_DEVICE_PATH}"
+    validate_file_has_no_extension \
+      "${ZFS_PART_DEVICE_PATH}" \
+      "since --encryption-password was not supplied, --zfs-part-device should not have a .eli extension"
   else
-    validate_file_has_extension "${ZFS_PART_DEVICE_PATH}" "eli"
-    validate_zfs_geli_ecrypted_partition "${ZFS_PART_DEVICE_PATH}"
+    validate_file_has_extension \
+      "${ZFS_PART_DEVICE_PATH}" \
+      "eli" \
+      "since --encryption-password was supplied, --zfs-part-device should have a .eli extension"
+    validate_zfs_geli_ecrypted_partition \
+      "${ZFS_PART_DEVICE_PATH}" \
+      "since --encryption-password was supplied, --zfs-part-device should be a GELI-encrypted partition"
   fi
 }
 
@@ -447,7 +457,9 @@ print_path_to_zfs_geli_ecrypted_partition() {
   path_to_part_without_geli_ext="$(print_path_to_zfs_partition_without_eli_ext "${path_to_whole_disk}")"
 
   path_to_zfs_geli_enc_part="${path_to_part_without_geli_ext}.eli"
-  validate_zfs_geli_ecrypted_partition "${path_to_zfs_geli_enc_part}"
+  validate_zfs_geli_ecrypted_partition \
+    "${path_to_zfs_geli_enc_part}" \
+    "\"${path_to_zfs_geli_enc_part}\" is not a valid GELI-encrypted partition"
   printf "%s" "${path_to_zfs_geli_enc_part}"
 }
 
