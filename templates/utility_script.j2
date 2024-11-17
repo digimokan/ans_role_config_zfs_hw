@@ -584,14 +584,23 @@ geli_encrypt_new_disk_zfs_part_as_req() {
 
   if [ "${ENCRYPTION_PASSWORD}" != '' ]; then
     zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
+    temp_enc_passwd_file="/tmp/geli_enc_zfs_part_pass.txt"
+
+    try_silent_with_exit \
+      "printf \"%s\" ${ENCRYPTION_PASSWORD} > \"${temp_enc_passwd_file}\"" \
+      "error writing encryption password into temp file" 20
 
     try_silent_print_with_exit \
-      "printf \"%s\" \"${ENCRYPTION_PASSWORD}\" | geli init -g -J - ${zfs_part_path}" \
+      "geli init -g -J \"${temp_enc_passwd_file}\" ${zfs_part_path}" \
       "initializing encrypted GELI device on new zfs partition" 20
 
     try_silent_print_with_exit \
-      "printf \"%s\" \"${ENCRYPTION_PASSWORD}\" | geli attach -j - ${zfs_part_path}" \
+      "geli attach -j \"${temp_enc_passwd_file}\" ${zfs_part_path}" \
       "attaching encrypted GELI device to system" 20
+
+    try_silent_with_exit \
+      "rm \"${temp_enc_passwd_file}\"" \
+      "error removing encryption password temp file" 20
   fi
 }
 
