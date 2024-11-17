@@ -112,7 +112,7 @@ get_cmd_opts() {
             online-device-into-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
             zfs-device=?*)                          handle_zfs_device "${long_opt_arg}" ;;
             zfs-device*)                            handle_missing_long_option_arg "${long_opt_name}" ;;
-            zfs-part-device=?*)                     handle_part_zfs_device "${long_opt_arg}" ;;
+            zfs-part-device=?*)                     handle_zfs_part_device "${long_opt_arg}" ;;
             zfs-part-device*)                       handle_missing_long_option_arg "${long_opt_name}" ;;
             whole-disk=?*)                          handle_whole_disk "${long_opt_arg}" ;;
             whole-disk*)                            handle_missing_long_option_arg "${long_opt_name}" ;;
