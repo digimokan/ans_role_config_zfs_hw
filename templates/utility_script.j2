@@ -6,6 +6,8 @@
 # Args/Opts: See usage (run with -h option).
 # Meta:      Script installed by ansible {{ role_name | basename }}.
 # Style:     ENV_VAR, GLOBAL_VAR, GLOBAL_READONLY_VAR, func_local_var, my_func
+# Refs:      https://docs.freebsd.org/en/books/handbook/zfs/
+#            https://docs.freebsd.org/en/books/handbook/disks/
 ################################################################################
 
 # GLOBAL VARS:
@@ -18,12 +20,16 @@ readonly DEFAULT_POOL
 
 # Mutable User Cmd Option Selections
 PRINT_HELP_MENU='false'
-SHOW_POOLS_STATUS='false'
-REMOVE_DEVICE_FROM_POOL='false'
+LIST_POOLS_STATUS='false'
+DETACH_DEVICE_FROM_POOL='false'
+ATTACH_NEW_DISK_TO_ROOT_MIRROR='false'
 OFFLINE_DEVICE_FROM_POOL='false'
 ONLINE_DEVICE_INTO_POOL='false'
+ZFS_DEVICE_PATH=""
+ZFS_PART_DEVICE_PATH=""
+WHOLE_DISK_PATH=""
+ENCRYPTION_PASSWORD=""
 POOL="${DEFAULT_POOL}"
-DEVICE=""
 
 # LOCAL FUNCTIONS:
 
@@ -37,58 +43,81 @@ print_usage() {
   done
 
   printf "USAGE:\n"
-  printf "  %s  -h\n" "${PROG_NAME}"
-  printf "  %s  -s\n" "${PROG_NAME}"
-  printf "  sudo  %s  -r                          -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  sudo  %s  --offline-device-from-pool  -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  sudo  %s  --online-device-into-pool   -C <device_name>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "        %s  -h\n" "${PROG_NAME}"
+  printf "        %s  -l\n" "${PROG_NAME}"
+  printf "  sudo  %s  -d                                  -C <path_to_device>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  sudo  %s  -r  [-E <pswd>]  -K <path_to_disk>  -T <path_to_device>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  sudo  %s  --offline-device-from-pool          -C <path_to_device>  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  sudo  %s  --online-device-into-pool           -C <path_to_device>  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "OPTIONS:\n"
   printf "  -h, --help\n"
   printf "      print this help message\n"
-  printf "  -s, --show-pools-status\n"
-  printf "      show status of all pools, along with their vdevs and devices\n"
-  printf "  -r, --remove-device-from-pool\n"
+  printf "  -l, --list-pools-status\n"
+  printf "      list status of all pools, along with their vdevs and devices\n"
+  printf "  -d, --detach-device-from-pool\n"
   printf "      remove a (possibly bad) device from a pool (offlines + detaches device)\n"
+  printf "  -r, --attach-new-disk-to-root-mirror\n"
+  printf "      format, partition, and attach a new disk to a device in a root pool, creating a mirror-vdev\n"
   printf "  --offline-device-from-pool\n"
   printf "      offline a device, without detaching it from a pool\n"
   printf "  --online-device-into-pool\n"
   printf "      online an offline device, making it an active part of a pool\n"
-  printf "  -C <device_name>, --device=<device_name>\n"
-  printf "      a zfs device (e.g. whole disk '/dev/ada0', partition '/dev/ada0p1', GELI '/dev/ada0p4.eli')\n"
+  printf "  -C <path_to_device>, --zfs-device=<path_to_device>\n"
+  printf "      a zfs device in a vdev (whole disk, partition, etc)\n"
+  printf "  -T <path_to_device>, --zfs-part-device=<path_to_device>\n"
+  printf "      a zfs device in a vdev, that is also a disk partition\n"
+  printf "  -K <path_to_disk>, --whole-disk=<path_to_disk>\n"
+  printf "      a path to a whole disk (e.g. /dev/ada5)\n"
+  printf "  -E <pswd>, --encryption-password=<pswd>\n"
+  printf "      a password for GELI-encrypting the whole disk\n"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
   printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
   printf "    0  ok\n"
   printf "    1  one or more devices in a pool's vdev is not online\n"
   printf "    5  zfs status/list error\n"
-  printf "    10 zfs device removal error\n"
-  printf "  255  unknown error\n"
+  printf "   10  zfs device detach error\n"
+  printf "   20  disk format or partition error\n"
+  printf "   60  zfs device online/attach error\n"
+  printf "  128  usage or options error\n"
 }
 
 get_cmd_opts() {
-  while getopts ':hsrC:P:-:' option; do
+  while getopts ':hldrC:T:K:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
-      s)  handle_show_pools_status ;;
-      r)  handle_remove_device_from_pool ;;
-      C)  handle_device "${short_opt_arg}" ;;
+      l)  handle_list_pools_status ;;
+      d)  handle_detach_device_from_pool ;;
+      r)  handle_attach_new_disk_to_root_mirror ;;
+      C)  handle_zfs_device "${short_opt_arg}" ;;
+      T)  handle_zfs_part_device "${short_opt_arg}" ;;
+      K)  handle_whole_disk "${short_opt_arg}" ;;
+      E)  handle_encryption_password "${short_opt_arg}" ;;
       P)  handle_pool "${short_opt_arg}" ;;
       -)  long_opt_name="${OPTARG}"
           long_opt_arg="${OPTARG#*=}"
           case ${long_opt_name} in
             help)                                   handle_print_help_menu ;;
             help=*)                                 handle_illegal_long_option_arg "${long_opt_name}" ;;
-            show-pools-status)                      handle_show_pools_status ;;
-            show-pools-status=*)                    handle_illegal_long_option_arg "${long_opt_name}" ;;
-            remove-device-from-pool)                handle_remove_device_from_pool ;;
-            remove-device-from-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
+            list-pools-status)                      handle_list_pools_status ;;
+            list-pools-status=*)                    handle_illegal_long_option_arg "${long_opt_name}" ;;
+            detach-device-from-pool)                handle_detach_device_from_pool ;;
+            detach-device-from-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
+            attach-new-disk-to-root-mirror)         handle_attach_new_disk_to_root_mirror ;;
+            attach-new-disk-to-root-mirror=*)       handle_illegal_long_option_arg "${long_opt_name}" ;;
             offline-device-from-pool)               handle_offline_device_from_pool ;;
             offline-device-from-pool=*)             handle_illegal_long_option_arg "${long_opt_name}" ;;
             online-device-into-pool)                handle_online_device_into_pool ;;
             online-device-into-pool=*)              handle_illegal_long_option_arg "${long_opt_name}" ;;
-            device=?*)                              handle_device "${long_opt_arg}" ;;
-            device*)                                handle_missing_long_option_arg "${long_opt_name}" ;;
+            zfs-device=?*)                          handle_zfs_device "${long_opt_arg}" ;;
+            zfs-device*)                            handle_missing_long_option_arg "${long_opt_name}" ;;
+            zfs-part-device=?*)                     handle_part_zfs_device "${long_opt_arg}" ;;
+            zfs-part-device*)                       handle_missing_long_option_arg "${long_opt_name}" ;;
+            whole-disk=?*)                          handle_whole_disk "${long_opt_arg}" ;;
+            whole-disk*)                            handle_missing_long_option_arg "${long_opt_name}" ;;
+            encryption-password=?*)                 handle_encryption_password "${long_opt_arg}" ;;
+            encryption-password*)                   handle_missing_long_option_arg "${long_opt_name}" ;;
             pool=?*)                                handle_pool "${long_opt_arg}" ;;
             pool*)                                  handle_missing_long_option_arg "${long_opt_name}" ;;
             '')                                     break ;; # non-option arg starting with '-'
@@ -137,6 +166,26 @@ try_silent_with_exit() {
   fi
 }
 
+try_silent_print_with_exit() {
+  cmd="${1}"
+  op_descrip="${2}"
+  err_code="${3}"
+
+  printf "Now %s with \"%s\"...\n" "${op_descrip}" "${cmd}"
+  err_msg="error ${op_descrip}"
+  try_silent_with_exit \
+    "${cmd}" \
+    "${err_msg}" "${err_code}"
+}
+
+try_total_silent_with_exit() {
+  cmd="${1}"
+  op_descrip="${2}"
+
+  printf "Now %s with \"%s\"...\n" "${op_descrip}" "${cmd}"
+  eval "${cmd}" 1> /dev/null 2>&1
+}
+
 handle_unknown_option() {
   short_opt_letter_or_long_opt_name="${1}"
   err_msg="unknown option \"${short_opt_letter_or_long_opt_name}\""
@@ -156,8 +205,9 @@ handle_missing_long_option_arg() {
 }
 
 handle_print_help_menu() {
-  if [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
-     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+  if [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
@@ -165,30 +215,33 @@ handle_print_help_menu() {
   PRINT_HELP_MENU='true'
 }
 
-handle_show_pools_status() {
+handle_list_pools_status() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
-     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
-  SHOW_POOLS_STATUS='true'
+  LIST_POOLS_STATUS='true'
 }
 
-handle_remove_device_from_pool() {
+handle_detach_device_from_pool() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
-     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
-  REMOVE_DEVICE_FROM_POOL='true'
+  DETACH_DEVICE_FROM_POOL='true'
 }
 
 handle_offline_device_from_pool() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
-     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
-     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
@@ -197,39 +250,360 @@ handle_offline_device_from_pool() {
 
 handle_online_device_into_pool() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
-     [ "${SHOW_POOLS_STATUS}" = 'true' ] || \
-     [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 5
   fi
   ONLINE_DEVICE_INTO_POOL='true'
 }
 
+handle_attach_new_disk_to_root_mirror() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 5
+  fi
+  ATTACH_NEW_DISK_TO_ROOT_MIRROR='true'
+}
+
+handle_zfs_device() {
+  ZFS_DEVICE_PATH="${1}"
+}
+
+handle_zfs_part_device() {
+  ZFS_PART_DEVICE_PATH="${1}"
+}
+
+handle_whole_disk() {
+  WHOLE_DISK_PATH="${1}"
+}
+
+handle_encryption_password() {
+  ENCRYPTION_PASSWORD="${1}"
+}
+
 handle_pool() {
   POOL="${1}"
 }
 
-handle_device() {
-  DEVICE="${1}"
+validate_whole_disk_name_or_path() {
+  whole_disk_name_or_path="${1}"
+
+  try_silent_with_exit \
+    "camcontrol identify ${whole_disk_name_or_path}" \
+    "${whole_disk_name_or_path} must be a valid whole disk" 128
+}
+
+validate_string_is_unsigned_integer() {
+  str="${1}"
+
+  try_silent_with_exit \
+    "test ! -z ${str}" \
+    "${str} must not be an empty string" 128
+  try_silent_with_exit \
+    "test \"${str}\" -eq \"${str}\"" \
+    "${str} must be an unsigned integer" 128
+}
+
+validate_partition_without_extension() {
+  # Note: this basename must not have a file extension
+  partition_basename="${1}"
+
+  try_silent_with_exit \
+    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${partition_basename}" \
+    "\"${partition_basename}\" must be a valid partition" 128
+}
+
+validate_active_device_in_vdev() {
+  device="${1}"
+
+  try_silent_with_exit \
+    "zpool list -v -P | grep --regexp=\"\s${device}\s\"" \
+    "${device} must be an active zfs device in a vdev" 128
+}
+
+validate_not_active_device_in_vdev() {
+  device="${1}"
+
+  try_silent_with_exit \
+    "! zpool list -v -P | grep ${device}" \
+    "${device} must not be an active zfs device in a vdev" 128
+}
+
+validate_item_is_not_full_disk() {
+  item="${1}"
+
+  try_silent_with_exit \
+    "! camcontrol identify ${item}" \
+    "${item} must be a partition, not a path to a full disk" 128
+}
+
+validate_file_has_extension() {
+  filename_or_file_path="${1}"
+  file_extension="${2}"
+
+  try_silent_with_exit \
+    "test \"${filename_or_file_path##*.}\" = \"${file_extension}\"" \
+    "\"${filename_or_file_path}\" should have extension \".${file_extension}\"" 128
+}
+
+validate_file_has_no_extension() {
+  filename_or_file_path="${1}"
+
+  filename_or_file_path_ext_removed="${filename_or_file_path%.*}"
+  try_silent_with_exit \
+    "test \"${filename_or_file_path_ext_removed}\" = \"${filename_or_file_path}\"" \
+    "\"${filename_or_file_path}\" should not have any extension" 128
+}
+
+validate_zfs_geli_ecrypted_partition() {
+  path_to_zfs_geli_enc_part="${1}"
+
+  try_silent_with_exit \
+    "geli status \"${path_to_zfs_geli_enc_part}\"" \
+    "\"${path_to_zfs_geli_enc_part}\" is not a valid GELI-encrypted zfs partition" 128
 }
 
 check_running_as_root() {
   if [ "$(id -un)" != 'root' ]; then
-    quit_with_err_msg "must run this script as root for this operation" 1
+    quit_with_err_msg "must run this script as root for this operation" 128
   fi
 }
 
-check_device_option() {
-  if [ "${DEVICE}" = '' ]; then
-    quit_with_err_msg "\"--device\" option must be specified" 1
+check_active_zfs_device_option() {
+  if [ "${ZFS_DEVICE_PATH}" = '' ]; then
+    quit_with_err_msg "\"--zfs-device\" option must be specified" 128
   fi
+  validate_active_device_in_vdev "${ZFS_DEVICE_PATH}"
+}
+
+check_zfs_part_device_option() {
+  if [ "${ZFS_PART_DEVICE_PATH}" = '' ]; then
+    quit_with_err_msg "\"--zfs-part-device\" option must be specified" 128
+  fi
+  validate_active_device_in_vdev "${ZFS_PART_DEVICE_PATH}"
+  validate_item_is_not_full_disk "${ZFS_PART_DEVICE_PATH}"
+}
+
+check_whole_disk_option() {
+  if [ "${WHOLE_DISK_PATH}" = '' ]; then
+    quit_with_err_msg "\"--whole-disk\" option must be specified" 128
+  fi
+  validate_whole_disk_name_or_path "${WHOLE_DISK_PATH}"
+  validate_not_active_device_in_vdev "${WHOLE_DISK_PATH}"
+}
+
+check_pool_is_root_pool() {
+  pool="${1}"
+
+  pool_mounted_on_root_dir="$(zfs get -H -o name mountpoint '/' | awk -F '/' '{print $1}')"
+  if [ "${pool}" != "${pool_mounted_on_root_dir}" ]; then
+    quit_with_err_msg "pool must be the zfs root/boot pool" 128
+  fi
+}
+
+check_encrypt_pswd_option_supplied_if_req() {
+  if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
+    validate_file_has_no_extension "${ZFS_PART_DEVICE_PATH}"
+  else
+    validate_file_has_extension "${ZFS_PART_DEVICE_PATH}" "eli"
+    validate_zfs_geli_ecrypted_partition "${ZFS_PART_DEVICE_PATH}"
+  fi
+}
+
+print_filename_without_extension() {
+  path_to_file="${1}"
+
+  # Note: this handles a filename with or without an extension
+  basename -- "${path_to_file}" ".${path_to_file##*.}"
+}
+
+print_zfs_partition_number() {
+  path_to_whole_disk="${1}"
+
+  # Note: part number should be e.g. "1"
+  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-zfs' | cut -d' ' -f1)"
+  validate_string_is_unsigned_integer "${part_number}"
+  printf "%s" "${part_number}"
+}
+
+print_path_to_zfs_partition_without_eli_ext() {
+  path_to_whole_disk="${1}"
+
+  # Note: part name should be e.g. "ada1p3"
+  # Note: find the partition type with the zfs partition code
+  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-zfs' | cut -d' ' -f1)"
+  validate_partition_without_extension "${part_name}"
+  printf "%s" "/dev/${part_name}"
+}
+
+print_path_to_zfs_geli_ecrypted_partition() {
+  path_to_whole_disk="${1}"
+
+  path_to_part_without_geli_ext="$(print_path_to_zfs_partition_without_eli_ext "${path_to_whole_disk}")"
+
+  path_to_zfs_geli_enc_part="${path_to_part_without_geli_ext}.eli"
+  validate_zfs_geli_ecrypted_partition "${path_to_zfs_geli_enc_part}"
+  printf "%s" "${path_to_zfs_geli_enc_part}"
+}
+
+print_whole_disk_name() {
+  whole_disk_path="${1}"
+
+  whole_disk_name="$(basename "${whole_disk_path}")"
+  validate_whole_disk_name_or_path "${whole_disk_name}"
+  printf "%s" "${whole_disk_name}"
+}
+
+print_whole_disk_path() {
+  # Note: this may be partition name, path to partition, with/without extension
+  part_name_or_part_path="${1}"
+
+  part_name_without_ext="$(print_filename_without_extension "${part_name_or_part_path}")"
+  whole_disk_name="$(geom part status -s | grep "${part_name_without_ext}" | tr -s ' ' | cut -d' ' -f3)"
+  path_to_whole_disk="/dev/${whole_disk_name}"
+  validate_whole_disk_name_or_path "${path_to_whole_disk}"
+  printf "%s" "${path_to_whole_disk}"
+}
+
+detach_disk_geli_device_as_required() {
+  disk_path="${1}"
+
+  disk_name="$(print_whole_disk_name "${disk_path}")"
+
+  geli_device_name="$(geli status | grep "${disk_name}" | tr -s ' ' | cut -d' ' -f1)"
+
+  try_silent_print_with_exit \
+    "geli detach ${geli_device_name}" \
+    "detaching geli device" 20
+}
+
+format_partitions_on_new_root_mirror_disk() {
+  new_whole_disk_path="${1}"
+  existing_zfs_part_device_path="${2}"
+
+  detach_disk_geli_device_as_required "${new_whole_disk_path}"
+
+  try_total_silent_with_exit \
+    "gpart destroy -F ${new_whole_disk_path}" \
+    "attempting to wipe new disk's partition table"
+
+  try_silent_print_with_exit \
+    "gpart create -s gpt ${new_whole_disk_path}" \
+    "creating partition table on ${new_whole_disk_path}" 20
+
+  existing_whole_disk="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
+  part_table_path="/tmp/existing_part_table.txt"
+
+  try_silent_print_with_exit \
+    "gpart backup ${existing_whole_disk} > ${part_table_path}" \
+    "copying existing disk's partition-table-format to ${part_table_path}" 20
+
+  try_silent_print_with_exit \
+    "gpart restore -F ${new_whole_disk_path} < ${part_table_path}" \
+    "writing partition table to new disk" 20
+}
+
+set_legacy_bios_bootcode_on_partition_1() {
+  # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
+  whole_disk_path="${1}"
+
+  try_silent_print_with_exit \
+    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ${whole_disk_path}" \
+    "setting legacy BIOS bootcode on new disk partition 1" 20
+}
+
+set_efi_bootcode_on_partition_1() {
+  # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
+  whole_disk_path="${1}"
+
+  new_disk_part1="${whole_disk_path}p1"
+
+  try_silent_print_with_exit \
+    "newfs_msdos -F 32 -c 1 ${new_disk_part1}" \
+    "formatting partition 1 on new disk" 20
+
+  temp_mount="/tmp/part1_efi_mount"
+
+  try_silent_print_with_exit \
+    "mkdir -p \"${temp_mount}\"" \
+    "creating temp mountpoint" 20
+
+  try_silent_print_with_exit \
+    "mount -t msdosfs -o longnames ${new_disk_part1} \"${temp_mount}\"" \
+    "mounting new disk partition 1" 20
+
+  efi_boot_dir="${temp_mount}/EFI/BOOT"
+
+  try_silent_print_with_exit \
+    "mkdir -p \"${efi_boot_dir}\"" \
+    "creating EFI boot dir" 20
+
+  try_silent_print_with_exit \
+    "cp -f \"/boot/loader.efi\" \"${efi_boot_dir}/BOOTX64.efi\"" \
+    "copying EFI partition content" 20
+
+  try_silent_print_with_exit \
+    "umount \"${temp_mount}\"" \
+    "unmounting new disk partition 1" 20
+}
+
+set_bootcode_on_new_root_mirror_disk() {
+  new_whole_disk_path="${1}"
+
+  bios_type="$(sysctl -n machdep.bootmethod)"
+  if [ "${bios_type}" = 'BIOS' ]; then
+    set_legacy_bios_bootcode_on_partition_1 "${new_whole_disk_path}"
+  elif [ "${bios_type}" = 'UEFI' ]; then
+    set_efi_bootcode_on_partition_1 "${new_whole_disk_path}"
+  else
+    quit_with_err_msg "system BIOS type is not \"BIOS\" or \"UEFI\"" 20
+  fi
+}
+
+geli_encrypt_new_disk_zfs_part_as_req() {
+  new_whole_disk_path="${1}"
+
+  if [ "${ENCRYPTION_PASSWORD}" != '' ]; then
+    zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
+
+    try_silent_print_with_exit \
+      "printf \"%s\" \"${ENCRYPTION_PASSWORD}\" | geli init -g -J - ${zfs_part_path}" \
+      "initializing encrypted GELI device on new zfs partition" 20
+
+    try_silent_print_with_exit \
+      "printf \"%s\" \"${ENCRYPTION_PASSWORD}\" | geli attach -j - ${zfs_part_path}" \
+      "attaching encrypted GELI device to system" 20
+  fi
+}
+
+attach_new_zfs_part_to_existing_mirror_part() {
+  new_whole_disk_path="${1}"
+  existing_zfs_part_device_path="${2}"
+  pool="${3}"
+
+  if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
+    new_zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
+  else
+    new_zfs_part_path="$(print_path_to_zfs_geli_ecrypted_partition "${new_whole_disk_path}")"
+  fi
+
+  printf "NOTE: the following attach operation waits for the new disk to resilver, "
+  printf "and can take 10 - 30 minutes, depending on disk size.\n"
+  try_silent_print_with_exit \
+    "zpool attach -w ${pool} \"${existing_zfs_part_device_path}\" \"${new_zfs_part_path}\"" \
+    "attaching new zfs device to existing zfs device, to create or extend the mirror" 60
 }
 
 do_print_help_menu() {
   print_usage
 }
 
-do_show_pools_status() {
+do_list_pools_status() {
   pools_status="$(zpool list -L -P -v)"
   quit_if_rc_not_zero "${?}" "error getting zpool status" 5
   printf "Status of all pools, along with their vdevs and devices:\n"
@@ -242,39 +616,46 @@ do_show_pools_status() {
   fi
 }
 
-do_remove_device_from_pool() {
+do_detach_device_from_pool() {
   check_running_as_root
-  check_device_option
+  check_active_zfs_device_option
 
   do_offline_device_from_pool
 
-  detach_cmd="zpool detach ${POOL} ${DEVICE}"
-  printf "Detaching device with \"%s\"...\n" "${detach_cmd}"
-  try_silent_with_exit \
-    "${detach_cmd}" \
-    "error attempting to detach ${DEVICE}" 10
+  try_silent_print_with_exit \
+    "zpool detach ${POOL} ${ZFS_DEVICE_PATH}" \
+    "detaching zfs device from pool" 10
+}
+
+do_attach_new_disk_to_root_mirror() {
+  check_running_as_root
+  check_zfs_part_device_option
+  check_whole_disk_option
+  check_encrypt_pswd_option_supplied_if_req
+  check_pool_is_root_pool "${POOL}"
+
+  format_partitions_on_new_root_mirror_disk "${WHOLE_DISK_PATH}" "${ZFS_PART_DEVICE_PATH}"
+  set_bootcode_on_new_root_mirror_disk "${WHOLE_DISK_PATH}"
+  geli_encrypt_new_disk_zfs_part_as_req "${WHOLE_DISK_PATH}"
+  attach_new_zfs_part_to_existing_mirror_part "${WHOLE_DISK_PATH}" "${ZFS_PART_DEVICE_PATH}" "${POOL}"
 }
 
 do_offline_device_from_pool() {
   check_running_as_root
-  check_device_option
+  check_active_zfs_device_option
 
-  offline_cmd="zpool offline ${POOL} ${DEVICE}"
-  printf "Offlining device with \"%s\"...\n" "${offline_cmd}"
-  try_silent_with_exit \
-    "${offline_cmd}" \
-    "error attempting to offline ${DEVICE}" 10
+  try_silent_print_with_exit \
+    "zpool offline ${POOL} ${ZFS_DEVICE_PATH}" \
+    "offlining zfs device" 10
 }
 
 do_online_device_into_pool() {
   check_running_as_root
-  check_device_option
+  check_active_zfs_device_option
 
-  online_cmd="zpool online ${POOL} ${DEVICE}"
-  printf "Onlining device with \"%s\"...\n" "${online_cmd}"
-  try_silent_with_exit \
-    "${online_cmd}" \
-    "error attempting to online ${DEVICE}" 10
+  try_silent_print_with_exit \
+    "zpool online ${POOL} ${ZFS_DEVICE_PATH}" \
+    "onlining zfs device" 60
 }
 
 # MAIN SCRIPT:
@@ -284,10 +665,12 @@ main() {
 
   if [ "${PRINT_HELP_MENU}" = 'true' ]; then
     do_print_help_menu
-  elif [ "${SHOW_POOLS_STATUS}" = 'true' ]; then
-    do_show_pools_status
-  elif [ "${REMOVE_DEVICE_FROM_POOL}" = 'true' ]; then
-    do_remove_device_from_pool
+  elif [ "${LIST_POOLS_STATUS}" = 'true' ]; then
+    do_list_pools_status
+  elif [ "${DETACH_DEVICE_FROM_POOL}" = 'true' ]; then
+    do_detach_device_from_pool
+  elif [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ]; then
+    do_attach_new_disk_to_root_mirror
   elif [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
     do_offline_device_from_pool
   elif [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then

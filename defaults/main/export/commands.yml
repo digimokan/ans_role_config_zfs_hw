@@ -1,3 +1,3 @@
 # command to execute to run the ZFS utility script (provided by this role)
-cfg_zfs_utility_script_cmd: 'do_zfs.sh'
+cfg_zfs_utility_script_cmd: 'do_zfs_hw.sh'
 
