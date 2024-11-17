@@ -486,7 +486,6 @@ detach_disk_geli_device_as_required() {
   disk_path="${1}"
 
   disk_name="$(print_whole_disk_name "${disk_path}")"
-
   geli_device_name="$(geli status | grep "${disk_name}" | tr -s ' ' | cut -d' ' -f1)"
 
   if [ "${geli_device_name}" != '' ]; then
@@ -496,11 +495,24 @@ detach_disk_geli_device_as_required() {
   fi
 }
 
+disable_disk_swap_device_as_required() {
+  disk_path="${1}"
+
+  swap_device_path="$(swapctl -l | grep "${disk_path}" | tr -s ' ' | cut -d' ' -f1)"
+
+  if [ "${swap_device_path}" != '' ]; then
+    try_silent_print_with_exit \
+      "swapoff \"${swap_device_path}\"" \
+      "disabling swap device" 20
+  fi
+}
+
 format_partitions_on_new_root_mirror_disk() {
   new_whole_disk_path="${1}"
   existing_zfs_part_device_path="${2}"
 
   detach_disk_geli_device_as_required "${new_whole_disk_path}"
+  disable_disk_swap_device_as_required "${new_whole_disk_path}"
 
   try_total_silent_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
