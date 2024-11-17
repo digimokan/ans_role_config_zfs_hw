@@ -416,7 +416,7 @@ validate_zfs_or_zfs_geli_partition() {
   part_name="$(print_filename_without_extension "${path_to_part}")"
 
   try_silent_with_exit \
-    "gpart show -p | grep ${part_name} | grep zfs" \
+    "gpart show -p | grep ${part_name} | grep zfs 1> /dev/null 2>&1" \
     "${err_msg}" 128
 }
 
