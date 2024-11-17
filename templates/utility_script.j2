@@ -489,9 +489,11 @@ detach_disk_geli_device_as_required() {
 
   geli_device_name="$(geli status | grep "${disk_name}" | tr -s ' ' | cut -d' ' -f1)"
 
-  try_silent_print_with_exit \
-    "geli detach ${geli_device_name}" \
-    "detaching geli device" 20
+  if [ "${geli_device_name}" != '' ]; then
+    try_silent_print_with_exit \
+      "geli detach ${geli_device_name}" \
+      "detaching geli device" 20
+  fi
 }
 
 format_partitions_on_new_root_mirror_disk() {
