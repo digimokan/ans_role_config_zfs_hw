@@ -851,8 +851,9 @@ do_create_storage_pool() {
   check_whole_disk_option
   check_pool_is_not_root_pool "${POOL}"
 
-  mount_point="$(print_mount_point "${DEFAULT_MOUNT_POINT_BASE}" "${MOUNT_POINT}" "${POOL}")"
+  wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
 
+  mount_point="$(print_mount_point "${DEFAULT_MOUNT_POINT_BASE}" "${MOUNT_POINT}" "${POOL}")"
   try_silent_print_with_exit \
     "zpool create -f -m \"${mount_point}\"  ${POOL} \"${WHOLE_DISK_PATH}\"" \
     "creating new storage pool from single disk \"${WHOLE_DISK_PATH}\", mounted at \"${mount_point}\"," 80
