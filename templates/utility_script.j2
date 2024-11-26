@@ -58,7 +58,7 @@ print_usage() {
   printf "  %s  -c|--create-storage-pool                -K <path_to_disk>                       [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-device-from-pool                               -C <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -r|--attach-new-disk-to-root-mirror     -K <path_to_disk>  -R <path_to_device>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <path_to_disk>  -S <path_to_device>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <path_to_disk>  -S <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY USAGE:\n"
   printf "  %s  -x|--offline-device-from-pool                              -C <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--attach-zfs-part-to-root-mirror     -T <path_to_part>  -R <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
@@ -535,7 +535,7 @@ check_zfs_disk_device_option() {
   fi
 
   validate_active_device_in_vdev "${ZFS_DISK_DEVICE_PATH}"
-  validate_item_is_full_disk "${ZFS_PART_DEVICE_PATH}"
+  validate_item_is_full_disk "${ZFS_DISK_DEVICE_PATH}"
 }
 
 check_whole_disk_option() {
@@ -588,6 +588,12 @@ check_encrypt_pswd_option_supplied_if_req() {
     validate_zfs_geli_ecrypted_partition \
       "${ZFS_PART_DEVICE_PATH}" \
       "since --encryption-password was supplied, --zfs-part-device should be a GELI-encrypted partition"
+  fi
+}
+
+check_encrypt_pswd_option_is_not_specified() {
+  if [ "${ENCRYPTION_PASSWORD}" != '' ]; then
+    quit_with_err_msg "--encryption-password must not be specified for this operation" 128
   fi
 }
 
@@ -890,6 +896,7 @@ do_attach_new_disk_to_storage_mirror() {
   check_running_as_root
   check_zfs_disk_device_option
   check_whole_disk_option
+  check_encrypt_pswd_option_is_not_specified
   check_pool_is_not_root_pool "${POOL}"
 
   wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
