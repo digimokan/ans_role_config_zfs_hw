@@ -630,7 +630,7 @@ validate_zfs_vdev() {
 
   try_silent_with_exit \
     "zpool get -H -o value parent ${pool} ${vdev_name} 2> /dev/null | grep ${pool} 1> /dev/null 2>&1" \
-    "${vdev_name} is not a top-level single-disk or mirrror vdev" 255
+    "${vdev_name} is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
 }
 
 check_running_as_root() {
