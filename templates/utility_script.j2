@@ -269,19 +269,19 @@ try_total_silent_with_exit() {
 handle_unknown_option() {
   short_opt_letter_or_long_opt_name="${1}"
   err_msg="unknown option \"${short_opt_letter_or_long_opt_name}\""
-  quit_with_err_msg "${err_msg}" 5
+  quit_with_err_msg "${err_msg}" 255
 }
 
 handle_illegal_long_option_arg() {
   long_opt_name="${1}"
   err_msg="illegal argument in \"${long_opt_name}\""
-  quit_with_err_msg "${err_msg}" 5
+  quit_with_err_msg "${err_msg}" 255
 }
 
 handle_missing_long_option_arg() {
   long_opt_name="${1}"
   err_msg="missing argument for option \"${long_opt_name}\""
-  quit_with_err_msg "${err_msg}" 5
+  quit_with_err_msg "${err_msg}" 255
 }
 
 handle_print_help_menu() {
@@ -296,7 +296,7 @@ handle_print_help_menu() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   PRINT_HELP_MENU='true'
 }
@@ -313,7 +313,7 @@ handle_list_pools_status() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   LIST_POOLS_STATUS='true'
 }
@@ -330,7 +330,7 @@ handle_create_storage_pool() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   CREATE_STORAGE_POOL='true'
 }
@@ -347,7 +347,7 @@ handle_attach_new_disk_to_root_mirror() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_NEW_DISK_TO_ROOT_MIRROR='true'
 }
@@ -364,7 +364,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_NEW_DISK_TO_STORAGE_MIRROR='true'
 }
@@ -381,7 +381,7 @@ handle_detach_device_from_mirror() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   DETACH_DEVICE_FROM_MIRROR='true'
 }
@@ -398,7 +398,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ADD_READ_CACHE_DISK_TO_POOL='true'
 }
@@ -415,7 +415,7 @@ handle_scrub_pool_data() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   SCRUB_POOL_DATA='true'
 }
@@ -432,7 +432,7 @@ handle_offline_device_from_pool() {
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   OFFLINE_DEVICE_FROM_POOL='true'
 }
@@ -449,7 +449,7 @@ handle_attach_zfs_part_to_root_mirror() {
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_ZFS_PART_TO_ROOT_MIRROR='true'
 }
@@ -466,7 +466,7 @@ handle_online_device_into_pool() {
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ONLINE_DEVICE_INTO_POOL='true'
 }
@@ -483,7 +483,7 @@ handle_remove_vdev_from_pool() {
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ]; then
-    quit_with_err_msg "mutually exclusive options selected" 5
+    quit_with_err_msg "mutually exclusive options selected" 255
   fi
   REMOVE_VDEV_FROM_POOL='true'
 }
@@ -1126,7 +1126,7 @@ main() {
   elif [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
     do_remove_vdev_from_pool
   else
-    quit_with_err_msg "no valid option selected" 5
+    quit_with_err_msg "no valid option selected" 255
   fi
 
   exit_with_cleanup 0

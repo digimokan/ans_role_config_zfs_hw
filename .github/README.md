@@ -18,7 +18,7 @@ Install and configure ZFS utilities.
 ## Purpose
 
 * Install supporting [ZFS](https://en.wikipedia.org/wiki/ZFS) utilities.
-* Provide a [utility script](../templates/do_zfs.j2) to simplify working
+* Provide a [utility script](../templates/utility_script.j2) to simplify working
   with ZFS pools and datasets.
 
 ## Supported Operating Systems
