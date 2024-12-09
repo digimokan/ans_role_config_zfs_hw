@@ -38,10 +38,10 @@ REMOVE_VDEV_FROM_POOL='false'
 
 # Mutable User Options
 ZFS_DEVICE_PATH=""
-ZFS_PART_DEVICE_PATH=""
-ZFS_DISK_DEVICE_PATH=""
-WHOLE_DISK_PATH=""
-ZFS_PART_PATH=""
+ROOT_MIRROR_DEVICE_PART_PATH=""
+STORAGE_MIRROR_DEVICE_DISK_PATH=""
+NEW_DISK_PATH=""
+NEW_PART_PATH=""
 ZFS_VDEV=""
 MOUNT_POINT=""
 ENCRYPTION_PASSWORD=""
@@ -63,17 +63,17 @@ print_usage() {
   printf "NORMAL USAGE:\n"
   printf "  %s  -h\n" "${PROG_NAME}"
   printf "  %s  -l\n" "${PROG_NAME}"
-  printf "  %s  -c|--create-storage-pool                -K <path_to_disk>                       [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
-  printf "  %s  -r|--attach-new-disk-to-root-mirror     -K <path_to_disk>  -R <path_to_device>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <path_to_disk>  -S <path_to_disk>                 [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -d|--detach-device-from-mirror                             -C <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -y|--add-read-cache-disk-to-pool        -K <path_to_disk>                                    [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                      [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
+  printf "  %s  -r|--attach-new-disk-to-root-mirror     -K <new_disk_path>  -R <rmir_dev_path>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -S <smir_disk_path>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -d|--detach-device-from-mirror                              -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -y|--add-read-cache-disk-to-pool        -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY USAGE:\n"
-  printf "  %s  -x|--offline-device-from-pool                              -C <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -j|--attach-zfs-part-to-root-mirror     -T <path_to_part>  -R <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -n|--online-device-into-pool                               -C <path_to_device>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -z|--remove-vdev-from-pool                                 -V <vdev_name>                    [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -x|--offline-device-from-pool                               -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -j|--attach-zfs-part-to-root-mirror     -T <new_part_path>  -R <rmir_dev_path>               [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -n|--online-device-into-pool                                -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -z|--remove-vdev-from-pool                                  -V <vdev_name>                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "OPTIONS:\n"
   printf "  -h, --help\n"
   printf "      print this help message\n"
@@ -101,15 +101,15 @@ print_usage() {
   printf "      remove a root/storage vdev from a pool (consolidates data, but leaves status artifacts!)\n"
   printf "  -C <path_to_device>, --zfs-device=<path_to_device>\n"
   printf "      any kind of zfs device in a vdev (whole disk, partition, etc)\n"
-  printf "  -R <path_to_device>, --zfs-part-device=<path_to_device>\n"
+  printf "  -R <rmir_dev_path>, --zfs-part-device=<rmir_dev_path>\n"
   printf "      a disk partition, that is a zfs device in a vdev\n"
-  printf "  -S <path_to_disk>, --zfs-disk-device=<path_to_disk>\n"
+  printf "  -S <smir_disk_path>, --zfs-disk-device=<smir_disk_path>\n"
   printf "      a whole disk, that is a zfs device in a vdev\n"
   printf "  -V <vdev_name>, --zfs-vdev=<vdev_name>\n"
   printf "      a zfs vdev (could be single disk, or a mirror containing multiple devices)\n"
-  printf "  -K <path_to_disk>, --whole-disk=<path_to_disk>\n"
+  printf "  -K <new_disk_path>, --whole-disk=<new_disk_path>\n"
   printf "      a path to a whole disk, that is NOT an active zfs device in a vdev\n"
-  printf "  -T <path_to_part>, --zfs-part=<path_to_part>\n"
+  printf "  -T <new_part_path>, --zfs-part=<new_part_path>\n"
   printf "      a path to a zfs disk partition, that is NOT an active zfs device in a vdev\n"
   printf "  -M <path>, --mount-point=<path>\n"
   printf "      path to mount point (default: %s)\n" "${mountpt}"
@@ -493,11 +493,11 @@ handle_zfs_device() {
 }
 
 handle_zfs_part_device() {
-  ZFS_PART_DEVICE_PATH="${1}"
+  ROOT_MIRROR_DEVICE_PART_PATH="${1}"
 }
 
 handle_zfs_disk_device() {
-  ZFS_DISK_DEVICE_PATH="${1}"
+  STORAGE_MIRROR_DEVICE_DISK_PATH="${1}"
 }
 
 handle_zfs_vdev() {
@@ -505,11 +505,11 @@ handle_zfs_vdev() {
 }
 
 handle_whole_disk() {
-  WHOLE_DISK_PATH="${1}"
+  NEW_DISK_PATH="${1}"
 }
 
 handle_zfs_part() {
-  ZFS_PART_PATH="${1}"
+  NEW_PART_PATH="${1}"
 }
 
 handle_mount_point() {
@@ -647,38 +647,38 @@ check_active_zfs_device_option() {
 }
 
 check_zfs_part_device_option() {
-  if [ "${ZFS_PART_DEVICE_PATH}" = '' ]; then
+  if [ "${ROOT_MIRROR_DEVICE_PART_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-part-device\" option must be specified" 255
   fi
-  validate_active_device_in_vdev "${ZFS_PART_DEVICE_PATH}"
-  validate_item_is_not_full_disk "${ZFS_PART_DEVICE_PATH}"
+  validate_active_device_in_vdev "${ROOT_MIRROR_DEVICE_PART_PATH}"
+  validate_item_is_not_full_disk "${ROOT_MIRROR_DEVICE_PART_PATH}"
 }
 
 check_zfs_disk_device_option() {
-  if [ "${ZFS_DISK_DEVICE_PATH}" = '' ]; then
+  if [ "${STORAGE_MIRROR_DEVICE_DISK_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-disk-device\" option must be specified" 255
   fi
 
-  validate_active_device_in_vdev "${ZFS_DISK_DEVICE_PATH}"
-  validate_item_is_full_disk "${ZFS_DISK_DEVICE_PATH}"
+  validate_active_device_in_vdev "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
+  validate_item_is_full_disk "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
 }
 
 check_whole_disk_option() {
-  if [ "${WHOLE_DISK_PATH}" = '' ]; then
+  if [ "${NEW_DISK_PATH}" = '' ]; then
     quit_with_err_msg "\"--whole-disk\" option must be specified" 255
   fi
-  validate_whole_disk_name_or_path "${WHOLE_DISK_PATH}"
-  validate_not_active_device_in_vdev "${WHOLE_DISK_PATH}"
+  validate_whole_disk_name_or_path "${NEW_DISK_PATH}"
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 }
 
 check_zfs_part_option() {
-  if [ "${ZFS_PART_PATH}" = '' ]; then
+  if [ "${NEW_PART_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-part\" option must be specified" 255
   fi
 
-  validate_not_active_device_in_vdev "${ZFS_PART_PATH}"
+  validate_not_active_device_in_vdev "${NEW_PART_PATH}"
   validate_zfs_or_zfs_geli_partition \
-    "${ZFS_PART_PATH}" \
+    "${NEW_PART_PATH}" \
     "--zfs-part must be a zfs disk partition (optionally, GELI-encrypted)"
 }
 
@@ -711,15 +711,15 @@ check_pool_is_not_root_pool() {
 check_encrypt_pswd_option_supplied_if_req() {
   if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
     validate_file_has_no_extension \
-      "${ZFS_PART_DEVICE_PATH}" \
+      "${ROOT_MIRROR_DEVICE_PART_PATH}" \
       "since --encryption-password was not supplied, --zfs-part-device should not have a .eli extension"
   else
     validate_file_has_extension \
-      "${ZFS_PART_DEVICE_PATH}" \
+      "${ROOT_MIRROR_DEVICE_PART_PATH}" \
       "eli" \
       "since --encryption-password was supplied, --zfs-part-device should have a .eli extension"
     validate_zfs_geli_ecrypted_partition \
-      "${ZFS_PART_DEVICE_PATH}" \
+      "${ROOT_MIRROR_DEVICE_PART_PATH}" \
       "since --encryption-password was supplied, --zfs-part-device should be a GELI-encrypted partition"
   fi
 }
@@ -992,12 +992,12 @@ do_create_storage_pool() {
   check_whole_disk_option
   check_pool_is_not_root_pool "${POOL}"
 
-  wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
 
   mount_point="$(print_mount_point "${DEFAULT_MOUNT_POINT_BASE}" "${MOUNT_POINT}" "${POOL}")"
   try_silent_print_with_exit \
-    "zpool create -f -m \"${mount_point}\"  ${POOL} \"${WHOLE_DISK_PATH}\"" \
-    "creating new storage pool from single disk \"${WHOLE_DISK_PATH}\", mounted at \"${mount_point}\"," 80
+    "zpool create -f -m \"${mount_point}\"  ${POOL} \"${NEW_DISK_PATH}\"" \
+    "creating new storage pool from single disk \"${NEW_DISK_PATH}\", mounted at \"${mount_point}\"," 80
 }
 
 do_attach_new_disk_to_root_mirror() {
@@ -1007,11 +1007,11 @@ do_attach_new_disk_to_root_mirror() {
   check_encrypt_pswd_option_supplied_if_req
   check_pool_is_root_pool "${POOL}"
 
-  wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
-  format_partitions_on_new_root_mirror_disk "${WHOLE_DISK_PATH}" "${ZFS_PART_DEVICE_PATH}"
-  set_bootcode_on_new_root_mirror_disk "${WHOLE_DISK_PATH}"
-  geli_encrypt_new_disk_zfs_part_as_req "${WHOLE_DISK_PATH}"
-  attach_new_zfs_part_to_existing_mirror_part "${WHOLE_DISK_PATH}" "${ZFS_PART_DEVICE_PATH}" "${POOL}"
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${ROOT_MIRROR_DEVICE_PART_PATH}"
+  set_bootcode_on_new_root_mirror_disk "${NEW_DISK_PATH}"
+  geli_encrypt_new_disk_zfs_part_as_req "${NEW_DISK_PATH}"
+  attach_new_zfs_part_to_existing_mirror_part "${NEW_DISK_PATH}" "${ROOT_MIRROR_DEVICE_PART_PATH}" "${POOL}"
 }
 
 do_attach_new_disk_to_storage_mirror() {
@@ -1021,10 +1021,10 @@ do_attach_new_disk_to_storage_mirror() {
   check_encrypt_pswd_option_is_not_specified
   check_pool_is_not_root_pool "${POOL}"
 
-  wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
   attach_new_device_to_existing_zfs_device_in_mirror \
-    "${WHOLE_DISK_PATH}" \
-    "${ZFS_DISK_DEVICE_PATH}" \
+    "${NEW_DISK_PATH}" \
+    "${STORAGE_MIRROR_DEVICE_DISK_PATH}" \
     "${POOL}"
 }
 
@@ -1043,10 +1043,10 @@ do_add_read_cache_disk_to_pool() {
   check_running_as_root
   check_whole_disk_option
 
-  wipe_new_disk_as_required "${WHOLE_DISK_PATH}"
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
   try_silent_print_with_exit \
-    "zpool add ${POOL} cache \"${WHOLE_DISK_PATH}\"" \
-    "adding read cache disk \"${WHOLE_DISK_PATH}\" to pool \"${POOL}\"" 60
+    "zpool add ${POOL} cache \"${NEW_DISK_PATH}\"" \
+    "adding read cache disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\"" 60
 }
 
 do_scrub_pool_data() {
@@ -1073,8 +1073,8 @@ do_attach_zfs_part_to_root_mirror() {
   check_pool_is_root_pool "${POOL}"
 
   attach_new_device_to_existing_zfs_device_in_mirror \
-    "${ZFS_PART_PATH}" \
-    "${ZFS_PART_DEVICE_PATH}" \
+    "${NEW_PART_PATH}" \
+    "${ROOT_MIRROR_DEVICE_PART_PATH}" \
     "${POOL}"
 }
 
