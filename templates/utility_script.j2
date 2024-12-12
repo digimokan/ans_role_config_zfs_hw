@@ -26,6 +26,7 @@ LIST_POOLS_STATUS='false'
 CREATE_STORAGE_POOL='false'
 ATTACH_NEW_DISK_TO_ROOT_MIRROR='false'
 ATTACH_NEW_DISK_TO_STORAGE_MIRROR='false'
+ADD_VDEV_TO_STORAGE_POOL='false'
 DETACH_DEVICE_FROM_MIRROR='false'
 ADD_READ_CACHE_DISK_TO_POOL='false'
 SCRUB_POOL_DATA='false'
@@ -66,6 +67,7 @@ print_usage() {
   printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                      [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
   printf "  %s  -r|--attach-new-disk-to-root-mirror     -K <new_disk_path>  -R <rmir_dev_path>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -S <smir_disk_path>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -a|--add-vdev-to-storage-pool           -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-device-from-mirror                              -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -y|--add-read-cache-disk-to-pool        -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                         [-P <pool_name>]\n" "${PROG_NAME}"
@@ -85,6 +87,8 @@ print_usage() {
   printf "      format, partition, and attach a new disk to a device in a root pool, creating a mirror-vdev\n"
   printf "  -s, --attach-new-disk-to-storage-mirror\n"
   printf "      attach a new disk to a device in a storage pool, creating a mirror-vdev\n"
+  printf "  -a, --add-vdev-to-storage-pool\n"
+  printf "      add a new disk to a storage pool, as a single-disk vdev\n"
   printf "  -d, --detach-device-from-mirror\n"
   printf "      detach a (possibly bad) device from a mirror (offlines + detaches device)\n"
   printf "  -y, --add-read-cache-disk-to-pool\n"
@@ -126,12 +130,12 @@ print_usage() {
   printf "   60  zfs device online/attach/add error\n"
   printf "   80  zfs pool create error\n"
   printf "  100  zfs pool scrub error\n"
-  printf "  120  zfs vdev removal error\n"
+  printf "  120  zfs vdev add/removal error\n"
   printf "  255  usage or options error\n"
 }
 
 get_cmd_opts() {
-  while getopts ':hlcrsdyuxjnzC:R:S:V:K:T:M:E:P:-:' option; do
+  while getopts ':hlcrsadyuxjnzC:R:S:V:K:T:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -139,6 +143,7 @@ get_cmd_opts() {
       c)  handle_create_storage_pool ;;
       r)  handle_attach_new_disk_to_root_mirror ;;
       s)  handle_attach_new_disk_to_storage_mirror ;;
+      a)  handle_add_vdev_to_storage_pool ;;
       d)  handle_detach_device_from_mirror ;;
       y)  handle_add_read_cache_disk_to_pool ;;
       u)  handle_scrub_pool_data ;;
@@ -168,6 +173,8 @@ get_cmd_opts() {
             attach-new-disk-to-root-mirror=*)       handle_illegal_long_option_arg "${long_opt_name}" ;;
             attach-new-disk-to-storage-mirror)      handle_attach_new_disk_to_storage_mirror ;;
             attach-new-disk-to-storage-mirror=*)    handle_illegal_long_option_arg "${long_opt_name}" ;;
+            add-vdev-to-storage-pool)               handle_add_vdev_to_storage_pool ;;
+            add-vdev-to-storage-pool=*)             handle_illegal_long_option_arg "${long_opt_name}" ;;
             detach-device-from-mirror)              handle_detach_device_from_mirror ;;
             detach-device-from-mirror=*)            handle_illegal_long_option_arg "${long_opt_name}" ;;
             add-read-cache-disk-to-pool)            handle_add_read_cache_disk_to_pool ;;
@@ -289,6 +296,7 @@ handle_print_help_menu() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -306,6 +314,7 @@ handle_list_pools_status() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -323,6 +332,7 @@ handle_create_storage_pool() {
      [ "${LIST_POOLS_STATUS}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -340,6 +350,7 @@ handle_attach_new_disk_to_root_mirror() {
      [ "${LIST_POOLS_STATUS}" = 'true' ] || \
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -357,6 +368,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${LIST_POOLS_STATUS}" = 'true' ] || \
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -369,12 +381,31 @@ handle_attach_new_disk_to_storage_mirror() {
   ATTACH_NEW_DISK_TO_STORAGE_MIRROR='true'
 }
 
+handle_add_vdev_to_storage_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  ADD_VDEV_TO_STORAGE_POOL='true'
+}
+
 handle_detach_device_from_mirror() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
      [ "${LIST_POOLS_STATUS}" = 'true' ] || \
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -392,6 +423,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -409,6 +441,7 @@ handle_scrub_pool_data() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -426,6 +459,7 @@ handle_offline_device_from_pool() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -443,6 +477,7 @@ handle_attach_zfs_part_to_root_mirror() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -460,6 +495,7 @@ handle_online_device_into_pool() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -477,6 +513,7 @@ handle_remove_vdev_from_pool() {
      [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -661,6 +698,12 @@ check_zfs_disk_device_option() {
 
   validate_active_device_in_vdev "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
   validate_item_is_full_disk "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
+}
+
+check_zfs_disk_device_option_is_not_specified() {
+  if [ "${STORAGE_MIRROR_DEVICE_DISK_PATH}" != '' ]; then
+    quit_with_err_msg "\"--zfs-disk-device\" option must not be specified for this operation" 255
+  fi
 }
 
 check_whole_disk_option() {
@@ -1028,6 +1071,19 @@ do_attach_new_disk_to_storage_mirror() {
     "${POOL}"
 }
 
+do_add_vdev_to_storage_pool() {
+  check_running_as_root
+  check_zfs_disk_device_option_is_not_specified
+  check_whole_disk_option
+  check_encrypt_pswd_option_is_not_specified
+  check_pool_is_not_root_pool "${POOL}"
+
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  try_silent_print_with_exit \
+    "zpool add ${POOL} \"${NEW_DISK_PATH}\"" \
+    "adding disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\" as single-disk vdev" 120
+}
+
 do_detach_device_from_mirror() {
   check_running_as_root
   check_active_zfs_device_option
@@ -1111,6 +1167,8 @@ main() {
     do_attach_new_disk_to_root_mirror
   elif [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ]; then
     do_attach_new_disk_to_storage_mirror
+  elif [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ]; then
+    do_add_vdev_to_storage_pool
   elif [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ]; then
     do_detach_device_from_mirror
   elif [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ]; then
