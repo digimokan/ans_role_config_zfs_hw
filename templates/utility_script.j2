@@ -29,6 +29,7 @@ ATTACH_NEW_DISK_TO_STORAGE_MIRROR='false'
 ADD_VDEV_TO_STORAGE_POOL='false'
 DETACH_DEVICE_FROM_MIRROR='false'
 ADD_READ_CACHE_DISK_TO_POOL='false'
+REMOVE_READ_CACHE_DISK_FROM_POOL='false'
 SCRUB_POOL_DATA='false'
 
 # Mutable User Contingency Cmd Option Selections
@@ -70,6 +71,7 @@ print_usage() {
   printf "  %s  -a|--add-vdev-to-storage-pool           -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-device-from-mirror                              -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -y|--add-read-cache-disk-to-pool        -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -w|--remove-read-cache-disk-from-pool   -K <disk_path>                                       [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY USAGE:\n"
   printf "  %s  -x|--offline-device-from-pool                               -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
@@ -93,6 +95,8 @@ print_usage() {
   printf "      detach a (possibly bad) device from a mirror (offlines + detaches device)\n"
   printf "  -y, --add-read-cache-disk-to-pool\n"
   printf "      add a new disk to the pool as a Level 2 Adjustable Replacement Cache (do not mirror)\n"
+  printf "  -w, --remove-read-cache-disk-from-pool\n"
+  printf "      remove a single-disk Level 2 Adjustable Replacement Cache from the pool\n"
   printf "  -u, --scrub-pool-data\n"
   printf "      read all data in pool (verifying data checksums), and repair as required\n"
   printf "  -x, --offline-device-from-pool\n"
@@ -111,14 +115,14 @@ print_usage() {
   printf "      a whole disk, that is a zfs device in a vdev\n"
   printf "  -V <vdev_name>, --zfs-vdev=<vdev_name>\n"
   printf "      a zfs vdev (could be single disk, or a mirror containing multiple devices)\n"
-  printf "  -K <new_disk_path>, --whole-disk=<new_disk_path>\n"
+  printf "  -K <disk_path>, --whole-disk=<disk_path>\n"
   printf "      a path to a whole disk, that is NOT an active zfs device in a vdev\n"
   printf "  -T <new_part_path>, --zfs-part=<new_part_path>\n"
   printf "      a path to a zfs disk partition, that is NOT an active zfs device in a vdev\n"
   printf "  -M <path>, --mount-point=<path>\n"
   printf "      path to mount point (default: %s)\n" "${mountpt}"
   printf "  -E <pswd>, --encryption-password=<pswd>\n"
-  printf "      a password for GELI-encrypting the whole disk\n"
+  printf "      a password for FreeBSD-GELI-encrypting the whole disk\n"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
   printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
@@ -135,7 +139,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcrsadyuxjnzC:R:S:V:K:T:M:E:P:-:' option; do
+  while getopts ':hlcrsadywuxjnzC:R:S:V:K:T:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -146,6 +150,7 @@ get_cmd_opts() {
       a)  handle_add_vdev_to_storage_pool ;;
       d)  handle_detach_device_from_mirror ;;
       y)  handle_add_read_cache_disk_to_pool ;;
+      w)  handle_remove_read_cache_disk_from_pool ;;
       u)  handle_scrub_pool_data ;;
       x)  handle_offline_device_from_pool ;;
       j)  handle_attach_zfs_part_to_root_mirror ;;
@@ -179,6 +184,8 @@ get_cmd_opts() {
             detach-device-from-mirror=*)            handle_illegal_long_option_arg "${long_opt_name}" ;;
             add-read-cache-disk-to-pool)            handle_add_read_cache_disk_to_pool ;;
             add-read-cache-disk-to-pool=*)          handle_illegal_long_option_arg "${long_opt_name}" ;;
+            remove-read-cache-disk-from-pool)       handle_remove_read_cache_disk_from_pool ;;
+            remove-read-cache-disk-from-pool=*)     handle_illegal_long_option_arg "${long_opt_name}" ;;
             scrub-pool-data)                        handle_scrub_pool_data ;;
             scrub-pool-data=*)                      handle_illegal_long_option_arg "${long_opt_name}" ;;
             offline-device-from-pool)               handle_offline_device_from_pool ;;
@@ -299,6 +306,7 @@ handle_print_help_menu() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -317,6 +325,7 @@ handle_list_pools_status() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -335,6 +344,7 @@ handle_create_storage_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -353,6 +363,7 @@ handle_attach_new_disk_to_root_mirror() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -371,6 +382,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -389,6 +401,7 @@ handle_add_vdev_to_storage_pool() {
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -407,6 +420,7 @@ handle_detach_device_from_mirror() {
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -425,6 +439,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -433,6 +448,25 @@ handle_add_read_cache_disk_to_pool() {
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ADD_READ_CACHE_DISK_TO_POOL='true'
+}
+
+handle_remove_read_cache_disk_from_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_ROOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  REMOVE_READ_CACHE_DISK_FROM_POOL='true'
 }
 
 handle_scrub_pool_data() {
@@ -444,6 +478,7 @@ handle_scrub_pool_data() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
@@ -462,6 +497,7 @@ handle_offline_device_from_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
@@ -480,6 +516,7 @@ handle_attach_zfs_part_to_root_mirror() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
@@ -498,6 +535,7 @@ handle_online_device_into_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -516,6 +554,7 @@ handle_remove_vdev_from_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_ZFS_PART_TO_ROOT_MIRROR}" = 'true' ] || \
@@ -590,11 +629,12 @@ validate_partition_without_extension() {
 }
 
 validate_active_device_in_vdev() {
-  device="${1}"
+  pool="${1}"
+  device="${2}"
 
   try_silent_with_exit \
-    "zpool list -v -P | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
-    "${device} must be an active zfs device in a vdev" 255
+    "zpool list -v -P ${pool} | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
+    "${device} must be an active zfs device in a vdev in pool ${pool}" 255
 }
 
 validate_not_active_device_in_vdev() {
@@ -603,6 +643,15 @@ validate_not_active_device_in_vdev() {
   try_silent_with_exit \
     "! zpool list -v -P | grep \"${device}\" 1> /dev/null" \
     "${device} must not be an active zfs device in a vdev" 255
+}
+
+validate_not_active_non_cache_device_in_vdev() {
+  pool="${1}"
+  whole_disk_path="${2}"
+
+  try_silent_with_exit \
+    "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep \"${whole_disk_path}\" 1> /dev/null 2>&1" \
+    "disk \"${whole_disk_path}\" is a normal zfs device in pool \"${pool}\" - not a cache disk" 255
 }
 
 validate_item_is_full_disk() {
@@ -670,6 +719,14 @@ validate_zfs_vdev() {
     "${vdev_name} is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
 }
 
+validate_pool_has_read_cache_disk() {
+  pool="${1}"
+
+  try_silent_with_exit \
+    "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep cache 1> /dev/null 2>&1" \
+    "read cache does not exist in pool \"${pool}\" (did you specify the correct pool?)" 255
+}
+
 check_running_as_root() {
   if [ "$(id -un)" != 'root' ]; then
     quit_with_err_msg "must run this script as root for this operation" 255
@@ -680,14 +737,14 @@ check_active_zfs_device_option() {
   if [ "${ZFS_DEVICE_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-device\" option must be specified" 255
   fi
-  validate_active_device_in_vdev "${ZFS_DEVICE_PATH}"
+  validate_active_device_in_vdev "${POOL}" "${ZFS_DEVICE_PATH}"
 }
 
 check_zfs_part_device_option() {
   if [ "${ROOT_MIRROR_DEVICE_PART_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-part-device\" option must be specified" 255
   fi
-  validate_active_device_in_vdev "${ROOT_MIRROR_DEVICE_PART_PATH}"
+  validate_active_device_in_vdev "${POOL}" "${ROOT_MIRROR_DEVICE_PART_PATH}"
   validate_item_is_not_full_disk "${ROOT_MIRROR_DEVICE_PART_PATH}"
 }
 
@@ -696,7 +753,7 @@ check_zfs_disk_device_option() {
     quit_with_err_msg "\"--zfs-disk-device\" option must be specified" 255
   fi
 
-  validate_active_device_in_vdev "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
+  validate_active_device_in_vdev "${POOL}" "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
   validate_item_is_full_disk "${STORAGE_MIRROR_DEVICE_DISK_PATH}"
 }
 
@@ -1105,6 +1162,18 @@ do_add_read_cache_disk_to_pool() {
     "adding read cache disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\"" 60
 }
 
+do_remove_read_cache_disk_from_pool() {
+  check_running_as_root
+  check_whole_disk_option
+  validate_active_device_in_vdev "${POOL}" "${NEW_DISK_PATH}"
+  validate_not_active_non_cache_device_in_vdev "${POOL}" "${NEW_DISK_PATH}"
+  validate_pool_has_read_cache_disk "${POOL}"
+
+  try_silent_print_with_exit \
+    "zpool remove -w ${POOL} ${NEW_DISK_PATH}" \
+    "removing read-cache disk \"${NEW_DISK_PATH}\" from pool \"${POOL}\"" 120
+}
+
 do_scrub_pool_data() {
   check_running_as_root
 
@@ -1173,6 +1242,8 @@ main() {
     do_detach_device_from_mirror
   elif [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ]; then
     do_add_read_cache_disk_to_pool
+  elif [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ]; then
+    do_remove_read_cache_disk_from_pool
   elif [ "${SCRUB_POOL_DATA}" = 'true' ]; then
     do_scrub_pool_data
   elif [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
