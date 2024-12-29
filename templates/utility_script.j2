@@ -768,7 +768,6 @@ check_whole_disk_option() {
     quit_with_err_msg "\"--whole-disk\" option must be specified" 255
   fi
   validate_whole_disk_name_or_path "${NEW_DISK_PATH}"
-  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 }
 
 check_zfs_part_option() {
@@ -1091,6 +1090,7 @@ do_create_storage_pool() {
   check_running_as_root
   check_whole_disk_option
   check_pool_is_not_root_pool "${POOL}"
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
 
@@ -1106,6 +1106,7 @@ do_attach_new_disk_to_root_mirror() {
   check_whole_disk_option
   check_encrypt_pswd_option_supplied_if_req
   check_pool_is_root_pool "${POOL}"
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${ROOT_MIRROR_DEVICE_PART_PATH}"
@@ -1120,6 +1121,7 @@ do_attach_new_disk_to_storage_mirror() {
   check_whole_disk_option
   check_encrypt_pswd_option_is_not_specified
   check_pool_is_not_root_pool "${POOL}"
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   attach_new_device_to_existing_zfs_device_in_mirror \
@@ -1134,6 +1136,7 @@ do_add_vdev_to_storage_pool() {
   check_whole_disk_option
   check_encrypt_pswd_option_is_not_specified
   check_pool_is_not_root_pool "${POOL}"
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   try_silent_print_with_exit \
@@ -1155,6 +1158,7 @@ do_detach_device_from_mirror() {
 do_add_read_cache_disk_to_pool() {
   check_running_as_root
   check_whole_disk_option
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   try_silent_print_with_exit \
