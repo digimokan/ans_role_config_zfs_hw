@@ -794,6 +794,14 @@ validate_zfs_or_zfs_geli_partition() {
     "${err_msg}" 255
 }
 
+validate_gpt_partition_label() {
+  part_label_path="${1}"
+
+  try_silent_with_exit \
+    "test -e \"${part_label_path}\"" \
+    "GPT partition label \"${part_label_path}\" does not exist" 255
+}
+
 validate_zfs_vdev() {
   vdev_name="${1}"
   pool="${2}"
@@ -992,6 +1000,23 @@ print_mount_point() {
   fi
 }
 
+print_new_gpt_partition_label() {
+  disk_path="${1}"
+
+  whole_disk_name="$(print_whole_disk_name "${disk_path}")"
+  two_char_disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
+  seven_char_disk_serno="$(diskinfo -s "${disk_path}" | tail -c 7)"
+  printf "%s" "${two_char_disk_type}${seven_char_disk_serno}"
+}
+
+print_gpt_partition_label_path() {
+  disk_path="${1}"
+
+  gpt_part_label_path="gpt/$(print_new_gpt_partition_label "${disk_path}")"
+  validate_gpt_partition_label "${gpt_part_label_path}"
+  printf "%s" "${gpt_part_label_path}"
+}
+
 detach_disk_geli_device_as_required() {
   disk_path="${1}"
 
@@ -1026,6 +1051,19 @@ wipe_new_disk_as_required() {
   try_total_silent_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
     "attempting to wipe new disk's partition table"
+}
+
+create_single_zfs_partition() {
+  new_whole_disk_path="${1}"
+
+  try_silent_print_with_exit \
+    "gpart create -s gpt ${new_whole_disk_path}" \
+    "creating partition table on ${new_whole_disk_path}" 20
+
+  gpt_part_label="$(print_new_gpt_partition_label "${new_whole_disk_path}")"
+  try_silent_print_with_exit \
+    "gpart add -t freebsd-zfs -l ${gpt_part_label} ${new_whole_disk_path}" \
+    "creating single ZFS partition on ${new_whole_disk_path}" 20
 }
 
 format_partitions_on_new_root_mirror_disk() {
@@ -1187,10 +1225,12 @@ do_create_storage_pool() {
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
 
   mount_point="$(print_mount_point "${DEFAULT_MOUNT_POINT_BASE}" "${MOUNT_POINT}" "${POOL}")"
   try_silent_print_with_exit \
-    "zpool create -f -m \"${mount_point}\"  ${POOL} \"${NEW_DISK_PATH}\"" \
+    "zpool create -f -m \"${mount_point}\" ${POOL} \"${gpt_part_label_path}\"" \
     "creating new storage pool from single disk \"${NEW_DISK_PATH}\", mounted at \"${mount_point}\"," 80
 }
 
