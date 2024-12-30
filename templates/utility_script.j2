@@ -1012,7 +1012,7 @@ print_new_gpt_partition_label() {
 print_gpt_partition_label_path() {
   disk_path="${1}"
 
-  gpt_part_label_path="gpt/$(print_new_gpt_partition_label "${disk_path}")"
+  gpt_part_label_path="/dev/gpt/$(print_new_gpt_partition_label "${disk_path}")"
   validate_gpt_partition_label "${gpt_part_label_path}"
   printf "%s" "${gpt_part_label_path}"
 }
