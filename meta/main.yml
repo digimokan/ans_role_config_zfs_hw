@@ -1,6 +1,6 @@
 galaxy_info:
   author: digimokan
-  description: "Install and configure ZFS utilities"
+  description: "Install and configure ZFS hardware: disks, pools, vdevs, and devices"
   license: "MIT"
   min_ansible_version: 2.7
   platforms:

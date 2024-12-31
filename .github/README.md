@@ -1,8 +1,8 @@
-# ans_role_config_zfs
+# ans_role_config_zfs_hw
 
-Install and configure ZFS utilities.
+Install and configure ZFS hardware: disks, pools, vdevs, and devices.
 
-[![Release](https://img.shields.io/github/release/digimokan/ans_role_config_zfs.svg?label=release)](https://github.com/digimokan/ans_role_config_zfs/releases/latest "Latest Release Notes")
+[![Release](https://img.shields.io/github/release/digimokan/ans_role_config_zfs_hw.svg?label=release)](https://github.com/digimokan/ans_role_config_zfs_hw/releases/latest "Latest Release Notes")
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?label=license)](LICENSE.md "Project License")
 
 ## Table Of Contents
@@ -40,7 +40,7 @@ Install and configure ZFS utilities.
 
    ```yaml
    # requirements.yml
-   - src: https://github.com/digimokan/ans_role_config_zfs
+   - src: https://github.com/digimokan/ans_role_config_zfs_hw
    ```
 
 2. From the project root directory, install/download the role:
@@ -58,9 +58,9 @@ Install and configure ZFS utilities.
    - hosts: localhost
      connection: local
      tasks:
-       - name: "Install and configure ZFS utilities"
+       - name: "Install and configure ZFS hardware: disks, pools, vdevs, and devices"
          ansible.builtin.include_role:
-           name: ans_role_config_zfs
+           name: ans_role_config_zfs_hw
    ```
 
 ## Role Options
@@ -76,7 +76,7 @@ Vars defined by this role, exported with `public: true`, for use in other roles:
 ## Contributing
 
 * Feel free to report a bug or propose a feature by opening a new
-  [Issue](https://github.com/digimokan/ans_role_config_zfs/issues).
+  [Issue](https://github.com/digimokan/ans_role_config_zfs_hw/issues).
 * Follow the project's [Contributing](CONTRIBUTING.md) guidelines.
 * Respect the project's [Code Of Conduct](CODE_OF_CONDUCT.md).
 
