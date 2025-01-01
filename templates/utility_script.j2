@@ -64,9 +64,9 @@ print_usage() {
 
   mountpt="${DEFAULT_MOUNT_POINT_BASE}/[pool-name]"
 
-  printf "NORMAL USAGE:\n"
-  printf "  %s  -h\n" "${PROG_NAME}"
-  printf "  %s  -l\n" "${PROG_NAME}"
+  printf "NORMAL OPERATIONS:\n"
+  printf "  %s  -h|--help\n" "${PROG_NAME}"
+  printf "  %s  -l|--list-pools-status\n" "${PROG_NAME}"
   printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                      [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
   printf "  %s  -r|--attach-new-disk-to-root-mirror     -K <new_disk_path>  -R <rmir_dev_path>  [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -S <smir_disk_path>              [-P <pool_name>]\n" "${PROG_NAME}"
@@ -77,12 +77,12 @@ print_usage() {
   printf "  %s  -q|--add-write-cache-disk-to-pool       -K <new_disk_path>                                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -o|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                   [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                         [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "CONTINGENCY USAGE:\n"
-  printf "  %s  -x|--offline-device-from-pool                               -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -j|--attach-zfs-part-to-root-mirror     -T <new_part_path>  -R <rmir_dev_path>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -n|--online-device-into-pool                                -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -z|--remove-vdev-from-pool                                  -V <vdev_name>                   [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "OPTIONS:\n"
+  printf "CONTINGENCY OPERATIONS:\n"
+  printf "  %s  --offline-device-from-pool                               -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  --attach-zfs-part-to-root-mirror     -T <new_part_path>  -R <rmir_dev_path>               [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  --online-device-into-pool                                -C <path_to_device>              [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  --remove-vdev-from-pool                                  -V <vdev_name>                   [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "DETAILS:\n"
   printf "  -h, --help\n"
   printf "      print this help message\n"
   printf "  -l, --list-pools-status\n"
@@ -107,13 +107,13 @@ print_usage() {
   printf "      remove the Separate ZFS Intent Log (SLOG) vdev from the pool\n"
   printf "  -u, --scrub-pool-data\n"
   printf "      read all data in pool (verifying data checksums), and repair as required\n"
-  printf "  -x, --offline-device-from-pool\n"
+  printf "  --offline-device-from-pool\n"
   printf "      offline a device, without detaching it from a pool\n"
-  printf "  -j, --attach-zfs-part-to-root-mirror\n"
+  printf "  --attach-zfs-part-to-root-mirror\n"
   printf "      attach a disk's existing zfs partition to a device in a root pool, creating a mirror-vdev\n"
-  printf "  -n --online-device-into-pool\n"
+  printf "  -online-device-into-pool\n"
   printf "      online an offline device, making it an active part of a pool\n"
-  printf "  -z, --remove-vdev-from-pool\n"
+  printf "  --remove-vdev-from-pool\n"
   printf "      remove a root/storage vdev from a pool (consolidates data, but leaves status artifacts!)\n"
   printf "  -C <path_to_device>, --zfs-device=<path_to_device>\n"
   printf "      any kind of zfs device in a vdev (whole disk, partition, etc)\n"
@@ -147,7 +147,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcrsadywqouxjnzC:R:S:V:K:T:M:E:P:-:' option; do
+  while getopts ':hlcrsadywqouC:R:S:V:K:T:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -162,10 +162,6 @@ get_cmd_opts() {
       q)  handle_add_write_cache_disk_to_pool ;;
       o)  handle_remove_write_cache_vdev_from_pool ;;
       u)  handle_scrub_pool_data ;;
-      x)  handle_offline_device_from_pool ;;
-      j)  handle_attach_zfs_part_to_root_mirror ;;
-      n)  handle_online_device_into_pool ;;
-      z)  handle_remove_vdev_from_pool ;;
       C)  handle_zfs_device "${short_opt_arg}" ;;
       R)  handle_zfs_part_device "${short_opt_arg}" ;;
       S)  handle_zfs_disk_device "${short_opt_arg}" ;;
