@@ -972,6 +972,18 @@ print_gpt_partition_label_path() {
   printf "%s" "${gpt_part_label_path}"
 }
 
+print_enc_mod_gpt_partition_label_path() {
+  gpt_part_label_path="${1}"
+
+  if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
+    mod_path="${gpt_part_label_path}"
+  else
+    mod_path="${gpt_part_label_path}.eli"
+  fi
+
+  printf "%s" "${mod_path}"
+}
+
 detach_disk_geli_device_as_required() {
   disk_path="${1}"
 
@@ -1019,6 +1031,16 @@ create_single_zfs_partition() {
   try_silent_print_with_exit \
     "gpart add -t freebsd-zfs -l ${gpt_part_label} ${new_whole_disk_path}" \
     "creating single ZFS partition on ${new_whole_disk_path}" 20
+}
+
+label_existing_zfs_partition() {
+  new_whole_disk_path="${1}"
+
+  zfs_partition_number="$(print_zfs_partition_number "${new_whole_disk_path}")"
+  gpt_part_label="$(print_new_gpt_partition_label "${new_whole_disk_path}")"
+  try_silent_print_with_exit \
+    "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${new_whole_disk_path}" \
+    "labeling ZFS partition on ${new_whole_disk_path}" 20
 }
 
 format_partitions_on_new_root_mirror_disk() {
@@ -1098,11 +1120,10 @@ set_bootcode_on_new_root_mirror_disk() {
   fi
 }
 
-geli_encrypt_new_disk_zfs_part_as_req() {
-  new_whole_disk_path="${1}"
+geli_encrypt_labeled_zfs_part_as_req() {
+  gpt_part_label_path="${1}"
 
   if [ "${ENCRYPTION_PASSWORD}" != '' ]; then
-    zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
     temp_enc_passwd_file="/tmp/geli_enc_zfs_part_pass.txt"
 
     try_silent_with_exit \
@@ -1110,11 +1131,11 @@ geli_encrypt_new_disk_zfs_part_as_req() {
       "error writing encryption password into temp file" 20
 
     try_silent_print_with_exit \
-      "geli init -g -J \"${temp_enc_passwd_file}\" ${zfs_part_path}" \
+      "geli init -g -J \"${temp_enc_passwd_file}\" \"${gpt_part_label_path}\"" \
       "initializing encrypted GELI device on new zfs partition" 20
 
     try_silent_print_with_exit \
-      "geli attach -j \"${temp_enc_passwd_file}\" ${zfs_part_path}" \
+      "geli attach -j \"${temp_enc_passwd_file}\" \"${gpt_part_label_path}\"" \
       "attaching encrypted GELI device to system" 20
 
     try_silent_with_exit \
@@ -1133,23 +1154,6 @@ attach_new_device_to_existing_zfs_device_in_mirror() {
   try_silent_print_with_exit \
     "zpool attach -w ${pool} \"${existing_zfs_device_path}\" \"${new_device_path}\"" \
     "attaching new device to existing zfs device, to create or extend the mirror," 60
-}
-
-attach_new_zfs_part_to_existing_mirror_part() {
-  new_whole_disk_path="${1}"
-  existing_zfs_part_device_path="${2}"
-  pool="${3}"
-
-  if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
-    new_zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
-  else
-    new_zfs_part_path="$(print_path_to_zfs_geli_ecrypted_partition "${new_whole_disk_path}")"
-  fi
-
-  attach_new_device_to_existing_zfs_device_in_mirror \
-    "${new_zfs_part_path}" \
-    "${existing_zfs_part_device_path}" \
-    "${pool}"
 }
 
 do_print_help_menu() {
@@ -1203,10 +1207,14 @@ do_attach_new_disk_to_root_mirror() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${ZFS_DEVICE_PATH}"
+  label_existing_zfs_partition "${NEW_DISK_PATH}"
   set_bootcode_on_new_root_mirror_disk "${NEW_DISK_PATH}"
-  geli_encrypt_new_disk_zfs_part_as_req "${NEW_DISK_PATH}"
-  attach_new_zfs_part_to_existing_mirror_part \
-    "${NEW_DISK_PATH}" \
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
+  enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
+
+  attach_new_device_to_existing_zfs_device_in_mirror \
+    "${enc_mod_part_label_path}" \
     "${ZFS_DEVICE_PATH}" \
     "${POOL}"
 }
