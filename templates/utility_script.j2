@@ -109,12 +109,12 @@ print_usage() {
   printf "      offline a device, without detaching it from a pool\n"
   printf "  --attach-device-as-is-to-mirror\n"
   printf "      attach a disk's existing zfs partition to a device in a root pool, creating a mirror-vdev\n"
-  printf "  -online-device-into-pool\n"
+  printf "  --online-device-into-pool\n"
   printf "      online an offline device, making it an active part of a pool\n"
   printf "  --remove-vdev-from-pool\n"
   printf "      remove a root/storage vdev from a pool (consolidates data, but leaves status artifacts!)\n"
   printf "  -C <zfs_device_path>, --zfs-device=<zfs_device_path>\n"
-  printf "      any kind of zfs device in a vdev (whole disk, partition, label, etc)\n"
+  printf "      any kind of zfs device in a vdev (whole disk, partition, etc)\n"
   printf "  -T <device_path>, --device=<device_path>\n"
   printf "      any kind of device (whole disk, partition, etc) that is NOT an active zfs device in a vdev\n"
   printf "  -K <disk_path>, --whole-disk=<disk_path>\n"
@@ -778,6 +778,14 @@ validate_gpt_partition_label() {
     "GPT partition label \"${part_label_path}\" does not exist" 255
 }
 
+validate_not_gpt_partition_label() {
+  path="${1}"
+
+  try_silent_with_exit \
+    "! test -z \"${path##/dev/gpt/*}\"" \
+    "GPT partition label \"${path}\" should not exist" 255
+}
+
 validate_zfs_vdev() {
   vdev_name="${1}"
   pool="${2}"
@@ -1204,6 +1212,11 @@ do_attach_new_disk_to_root_mirror() {
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
   validate_active_device_in_vdev "${POOL}" "${ZFS_DEVICE_PATH}"
   validate_item_is_not_full_disk "${ZFS_DEVICE_PATH}"
+  # Note: as of Jan 2025, GELI attaches only to raw disk devices, not labels.
+  # zpool status will show labels after this operation, but they'll disappear on
+  # the next boot.
+  # Ref: https://forums.freebsd.org/threads/geom-labels-disappear-after-geli-attaches-to-raw-disk-device.89579/#post-615626
+  validate_not_gpt_partition_label "${ZFS_DEVICE_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${ZFS_DEVICE_PATH}"
