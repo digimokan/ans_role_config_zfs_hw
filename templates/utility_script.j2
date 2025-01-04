@@ -68,7 +68,7 @@ print_usage() {
   printf "  %s  -h|--help\n" "${PROG_NAME}"
   printf "  %s  -l|--list-pools-status\n" "${PROG_NAME}"
   printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                        [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
-  printf "  %s  -r|--attach-new-disk-to-boot-mirror     -K <new_disk_path>  -G <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -r|--attach-new-disk-to-boot-mirror     -K <new_disk_path>  -G <gpt_label_path>   [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -a|--add-vdev-to-storage-pool           -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-device-from-mirror                              -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
@@ -937,18 +937,21 @@ check_pool_option_is_not_root_pool() {
 }
 
 check_encrypt_pswd_option_supplied_if_req() {
+  path="${1}"
+  long_opt_name="${2}"
+
   if [ "${ENCRYPTION_PASSWORD}" = '' ]; then
     validate_file_has_no_extension \
-      "${ZFS_DEVICE_PATH}" \
-      "since --encryption-password was not supplied, --zfs-device should not have a .eli extension"
+      "${path}" \
+      "since --encryption-password was not supplied, ${long_opt_name} should not have a .eli extension"
   else
     validate_file_has_extension \
-      "${ZFS_DEVICE_PATH}" \
+      "${path}" \
       "eli" \
-      "since --encryption-password was supplied, --zfs-device should have a .eli extension"
+      "since --encryption-password was supplied, ${long_opt_name} should have a .eli extension"
     validate_zfs_geli_ecrypted_partition \
-      "${ZFS_DEVICE_PATH}" \
-      "since --encryption-password was supplied, --zfs-device should be a GELI-encrypted partition"
+      "${path}" \
+      "since --encryption-password was supplied, ${long_opt_name} should be a GELI-encrypted partition"
   fi
 }
 
@@ -1286,7 +1289,7 @@ do_attach_new_disk_to_boot_mirror() {
   check_running_as_root
   check_whole_disk_option
   check_gpt_label_option
-  check_encrypt_pswd_option_supplied_if_req
+  check_encrypt_pswd_option_supplied_if_req "${GPT_LABEL_PATH}" "--gpt-label"
   check_pool_option_is_root_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
@@ -1419,7 +1422,7 @@ do_attach_new_disk_to_install_mirror() {
   check_running_as_root
   check_whole_disk_option
   check_zfs_device_option
-  check_encrypt_pswd_option_supplied_if_req
+  check_encrypt_pswd_option_supplied_if_req "${ZFS_DEVICE_PATH}" "--zfs-device"
   check_pool_option_is_root_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
