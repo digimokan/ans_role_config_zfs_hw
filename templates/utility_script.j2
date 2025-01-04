@@ -828,8 +828,11 @@ validate_gpt_partition_label() {
   part_label_path="${1}"
 
   try_silent_with_exit \
-    "test -z \"${path##/dev/gpt/*}\"" \
-    "GPT partition label \"${part_label_path}\" does not exist" 255
+    "test -z \"${part_label_path##/dev/gpt/*}\"" \
+    "GPT partition label \"${part_label_path}\" is not a partition" 255
+  try_silent_with_exit \
+    "test -e \"${part_label_path}\"" \
+    "GPT partition label \"${part_label_path}\" does not exist in filesystem" 255
 }
 
 validate_not_gpt_partition_label() {
