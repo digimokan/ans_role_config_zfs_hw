@@ -1469,8 +1469,11 @@ do_attach_new_disk_to_storage_mirror() {
   validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+
   attach_new_device_to_existing_zfs_device_in_mirror \
-    "${NEW_DISK_PATH}" \
+    "${gpt_part_label_path}" \
     "${GPT_LABEL_PATH}" \
     "${POOL}"
 }
