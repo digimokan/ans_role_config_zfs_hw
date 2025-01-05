@@ -32,6 +32,7 @@ ADD_READ_CACHE_DISK_TO_POOL='false'
 REMOVE_READ_CACHE_DISK_FROM_POOL='false'
 ADD_WRITE_CACHE_DISK_TO_POOL='false'
 REMOVE_WRITE_CACHE_VDEV_FROM_POOL='false'
+LABEL_DEVICES_IN_INSTALL_MIRROR='false'
 SCRUB_POOL_DATA='false'
 
 # Mutable User Contingency Cmd Option Selections
@@ -76,6 +77,7 @@ print_usage() {
   printf "  %s  -w|--remove-read-cache-disk-from-pool                       -K <disk_path>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -q|--add-write-cache-disk-to-pool       -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -o|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                           [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY OPERATIONS:\n"
   printf "  %s  --offline-device-from-pool                                  -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
@@ -106,6 +108,8 @@ print_usage() {
   printf "      add a new disk to the pool as a Separate ZFS Intent Log (SLOG) (should be mirrored)\n"
   printf "  -o, --remove-write-cache-vdev-from-pool\n"
   printf "      remove the Separate ZFS Intent Log (SLOG) vdev from the pool\n"
+  printf "  -j, --label-devices-in-install-mirror\n"
+  printf "      reformat install-mirror devices and attach them to mirror by GPT label\n"
   printf "  -u, --scrub-pool-data\n"
   printf "      read all data in pool (verifying data checksums), and repair as required\n"
   printf "  --offline-device-from-pool\n"
@@ -148,7 +152,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcrsadywqouG:C:T:K:V:M:E:P:-:' option; do
+  while getopts ':hlcrsadywqojuG:C:T:K:V:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -162,6 +166,7 @@ get_cmd_opts() {
       w)  handle_remove_read_cache_disk_from_pool ;;
       q)  handle_add_write_cache_disk_to_pool ;;
       o)  handle_remove_write_cache_vdev_from_pool ;;
+      j)  handle_label_devices_in_install_mirror ;;
       u)  handle_scrub_pool_data ;;
       G)  handle_gpt_label "${short_opt_arg}" ;;
       C)  handle_zfs_device "${short_opt_arg}" ;;
@@ -196,6 +201,8 @@ get_cmd_opts() {
             add-write-cache-disk-to-pool=*)         handle_illegal_long_option_arg "${long_opt_name}" ;;
             remove-write-cache-vdev-from-pool)      handle_remove_write_cache_vdev_from_pool ;;
             remove-write-cache-vdev-from-pool=*)    handle_illegal_long_option_arg "${long_opt_name}" ;;
+            label-devices-in-install-mirror)        handle_label_devices_in_install_mirror ;;
+            label-devices-in-install-mirror=*)      handle_illegal_long_option_arg "${long_opt_name}" ;;
             scrub-pool-data)                        handle_scrub_pool_data ;;
             scrub-pool-data=*)                      handle_illegal_long_option_arg "${long_opt_name}" ;;
             offline-device-from-pool)               handle_offline_device_from_pool ;;
@@ -319,6 +326,7 @@ handle_print_help_menu() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -341,6 +349,7 @@ handle_list_pools_status() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -363,6 +372,7 @@ handle_create_storage_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -385,6 +395,7 @@ handle_attach_new_disk_to_boot_mirror() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -407,6 +418,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -429,6 +441,7 @@ handle_add_vdev_to_storage_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -451,6 +464,7 @@ handle_detach_device_from_mirror() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -473,6 +487,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -495,6 +510,7 @@ handle_remove_read_cache_disk_from_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -517,6 +533,7 @@ handle_add_write_cache_disk_to_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -539,6 +556,7 @@ handle_remove_write_cache_vdev_from_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -562,6 +580,7 @@ handle_scrub_pool_data() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
@@ -570,6 +589,29 @@ handle_scrub_pool_data() {
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   SCRUB_POOL_DATA='true'
+}
+
+handle_label_devices_in_install_mirror() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_BOOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
+     [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  LABEL_DEVICES_IN_INSTALL_MIRROR='true'
 }
 
 handle_offline_device_from_pool() {
@@ -584,6 +626,7 @@ handle_offline_device_from_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
@@ -606,6 +649,7 @@ handle_attach_new_disk_to_install_mirror() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
@@ -628,6 +672,7 @@ handle_attach_device_as_is_to_mirror() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -650,6 +695,7 @@ handle_online_device_into_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -672,6 +718,7 @@ handle_remove_vdev_from_pool() {
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -743,8 +790,8 @@ validate_partition_without_extension() {
 }
 
 validate_active_device_in_vdev() {
-  pool="${1}"
-  device="${2}"
+  device="${1}"
+  pool="${2}"
 
   try_silent_with_exit \
     "zpool list -v -P ${pool} | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
@@ -760,8 +807,8 @@ validate_not_active_device_in_vdev() {
 }
 
 validate_not_active_non_cache_device_in_vdev() {
-  pool="${1}"
-  whole_disk_path="${2}"
+  whole_disk_path="${1}"
+  pool="${2}"
 
   try_silent_with_exit \
     "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep \"${whole_disk_path}\" 1> /dev/null 2>&1" \
@@ -887,7 +934,7 @@ check_zfs_device_option() {
   if [ "${ZFS_DEVICE_PATH}" = '' ]; then
     quit_with_err_msg "\"--zfs-device\" option must be specified" 255
   fi
-  validate_active_device_in_vdev "${POOL}" "${ZFS_DEVICE_PATH}"
+  validate_active_device_in_vdev "${ZFS_DEVICE_PATH}" "${POOL}"
 }
 
 check_device_option() {
@@ -957,7 +1004,7 @@ check_encrypt_pswd_option_supplied_if_req() {
 
 check_encrypt_pswd_option_is_not_specified() {
   if [ "${ENCRYPTION_PASSWORD}" != '' ]; then
-    quit_with_err_msg "--encryption-password must not be specified for this operation" 255
+    quit_with_err_msg "--encryption-password is not supported for this operation" 255
   fi
 }
 
@@ -1247,6 +1294,74 @@ attach_new_device_to_existing_zfs_device_in_mirror() {
     "attaching new device to existing zfs device, to create or extend the mirror," 60
 }
 
+exec_detach_device_from_mirror() {
+  device="${1}"
+  pool="${2}"
+
+  try_silent_print_with_exit \
+    "zpool detach ${pool} ${device}" \
+    "detaching zfs device \"${device}\" from mirror" 10
+}
+
+exec_offline_device_from_pool() {
+  device="${1}"
+  pool="${2}"
+
+  try_silent_print_with_exit \
+    "zpool offline ${pool} ${device}" \
+    "offlining zfs device \"${device}\"" 10
+}
+
+exec_attach_new_disk_to_install_mirror() {
+  new_disk_path="${1}"
+  zfs_device_path="${2}"
+  pool="${3}"
+
+  validate_not_active_device_in_vdev "${new_disk_path}"
+  validate_active_device_in_vdev "${zfs_device_path}" "${pool}"
+  validate_item_is_not_full_disk "${zfs_device_path}"
+  # Note: as of Jan 2025, GELI attaches only to raw disk devices, not labels.
+  # zpool status will show labels after this operation, but they'll disappear on
+  # the next boot.
+  # Ref: https://forums.freebsd.org/threads/geom-labels-disappear-after-geli-attaches-to-raw-disk-device.89579/#post-615626
+  validate_not_gpt_partition_label "${zfs_device_path}"
+
+  wipe_new_disk_as_required "${new_disk_path}"
+  format_partitions_on_new_root_mirror_disk "${new_disk_path}" "${zfs_device_path}"
+  label_existing_zfs_partition "${new_disk_path}"
+  set_bootcode_on_new_root_mirror_disk "${new_disk_path}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${new_disk_path}")"
+  geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
+  enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
+
+  attach_new_device_to_existing_zfs_device_in_mirror \
+    "${enc_mod_part_label_path}" \
+    "${zfs_device_path}" \
+    "${pool}"
+}
+
+exec_attach_new_disk_to_boot_mirror() {
+  new_disk_path="${1}"
+  gpt_label_path="${2}"
+  pool="${3}"
+
+  validate_not_active_device_in_vdev "${new_disk_path}"
+  validate_active_device_in_vdev "${gpt_label_path}" "${pool}"
+
+  wipe_new_disk_as_required "${new_disk_path}"
+  format_partitions_on_new_root_mirror_disk "${new_disk_path}" "${gpt_label_path}"
+  label_existing_zfs_partition "${new_disk_path}"
+  set_bootcode_on_new_root_mirror_disk "${new_disk_path}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${new_disk_path}")"
+  geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
+  enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
+
+  attach_new_device_to_existing_zfs_device_in_mirror \
+    "${enc_mod_part_label_path}" \
+    "${gpt_label_path}" \
+    "${pool}"
+}
+
 do_print_help_menu() {
   print_usage
 }
@@ -1292,21 +1407,7 @@ do_attach_new_disk_to_boot_mirror() {
   check_encrypt_pswd_option_supplied_if_req "${GPT_LABEL_PATH}" "--gpt-label"
   check_pool_option_is_root_pool "${POOL}"
 
-  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
-  validate_active_device_in_vdev "${POOL}" "${GPT_LABEL_PATH}"
-
-  wipe_new_disk_as_required "${NEW_DISK_PATH}"
-  format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${GPT_LABEL_PATH}"
-  label_existing_zfs_partition "${NEW_DISK_PATH}"
-  set_bootcode_on_new_root_mirror_disk "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
-  geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
-  enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
-
-  attach_new_device_to_existing_zfs_device_in_mirror \
-    "${enc_mod_part_label_path}" \
-    "${GPT_LABEL_PATH}" \
-    "${POOL}"
+  exec_attach_new_disk_to_boot_mirror "${NEW_DISK_PATH}" "${GPT_LABEL_PATH}" "${POOL}"
 }
 
 do_attach_new_disk_to_storage_mirror() {
@@ -1317,7 +1418,7 @@ do_attach_new_disk_to_storage_mirror() {
   check_pool_option_is_not_root_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
-  validate_active_device_in_vdev "${POOL}" "${ZFS_DEVICE_PATH}"
+  validate_active_device_in_vdev "${ZFS_DEVICE_PATH}" "${POOL}"
   validate_item_is_full_disk "${ZFS_DEVICE_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
@@ -1346,11 +1447,8 @@ do_detach_device_from_mirror() {
   check_running_as_root
   check_zfs_device_option
 
-  do_offline_device_from_pool
-
-  try_silent_print_with_exit \
-    "zpool detach ${POOL} ${ZFS_DEVICE_PATH}" \
-    "detaching zfs device from mirror" 10
+  exec_offline_device_from_pool "${ZFS_DEVICE_PATH}" "${POOL}"
+  exec_detach_device_from_mirror "${ZFS_DEVICE_PATH}" "${POOL}"
 }
 
 do_add_read_cache_disk_to_pool() {
@@ -1369,8 +1467,8 @@ do_remove_read_cache_disk_from_pool() {
   check_running_as_root
   check_whole_disk_option
 
-  validate_active_device_in_vdev "${POOL}" "${NEW_DISK_PATH}"
-  validate_not_active_non_cache_device_in_vdev "${POOL}" "${NEW_DISK_PATH}"
+  validate_active_device_in_vdev "${NEW_DISK_PATH}" "${POOL}"
+  validate_not_active_non_cache_device_in_vdev "${NEW_DISK_PATH}" "${POOL}"
   validate_pool_has_read_cache_disk "${POOL}"
 
   try_silent_print_with_exit \
@@ -1401,6 +1499,35 @@ do_remove_write_cache_vdev_from_pool() {
     "removing write-cache vdev \"${ZFS_VDEV}\" from pool \"${POOL}\"" 120
 }
 
+do_label_devices_in_install_mirror() {
+  check_running_as_root
+  check_vdev_option
+  check_pool_option_is_root_pool "${POOL}"
+  check_encrypt_pswd_option_is_not_specified
+
+  mirror_device_list="$(zpool get -Ho value children "${POOL}" "${ZFS_VDEV}")"
+  disk_part_1="$(printf "%s" "${mirror_device_list}" | awk -F ',' '{ print $1 }')"
+  disk_part_2="$(printf "%s" "${mirror_device_list}" | awk -F ',' '{ print $2 }')"
+  whole_disk_1="$(print_whole_disk_path "${disk_part_1}")"
+  whole_disk_2="$(print_whole_disk_path "${disk_part_2}")"
+
+  if [ "${disk_part_1}" = '' ] || \
+     [ "${disk_part_2}" = '' ]; then
+    quit_with_err_msg "--zfs-vdev must be a mirror vdev with two devices" 1
+  fi
+  validate_partition_without_extension "${disk_part_1}"
+  validate_partition_without_extension "${disk_part_2}"
+
+  exec_offline_device_from_pool "${disk_part_2}" "${POOL}"
+  exec_detach_device_from_mirror "${disk_part_2}" "${POOL}"
+  exec_attach_new_disk_to_install_mirror "${whole_disk_2}" "${disk_part_1}" "${POOL}"
+
+  disk_label_2="$(print_gpt_partition_label_path "${whole_disk_2}")"
+  exec_offline_device_from_pool "${disk_part_1}" "${POOL}"
+  exec_detach_device_from_mirror "${disk_part_1}" "${POOL}"
+  exec_attach_new_disk_to_boot_mirror "${whole_disk_1}" "${disk_label_2}" "${POOL}"
+}
+
 do_scrub_pool_data() {
   check_running_as_root
 
@@ -1413,9 +1540,7 @@ do_offline_device_from_pool() {
   check_running_as_root
   check_zfs_device_option
 
-  try_silent_print_with_exit \
-    "zpool offline ${POOL} ${ZFS_DEVICE_PATH}" \
-    "offlining zfs device" 10
+  exec_offline_device_from_pool "${ZFS_DEVICE_PATH}" "${POOL}"
 }
 
 do_attach_new_disk_to_install_mirror() {
@@ -1425,27 +1550,7 @@ do_attach_new_disk_to_install_mirror() {
   check_encrypt_pswd_option_supplied_if_req "${ZFS_DEVICE_PATH}" "--zfs-device"
   check_pool_option_is_root_pool "${POOL}"
 
-  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
-  validate_active_device_in_vdev "${POOL}" "${ZFS_DEVICE_PATH}"
-  validate_item_is_not_full_disk "${ZFS_DEVICE_PATH}"
-  # Note: as of Jan 2025, GELI attaches only to raw disk devices, not labels.
-  # zpool status will show labels after this operation, but they'll disappear on
-  # the next boot.
-  # Ref: https://forums.freebsd.org/threads/geom-labels-disappear-after-geli-attaches-to-raw-disk-device.89579/#post-615626
-  validate_not_gpt_partition_label "${ZFS_DEVICE_PATH}"
-
-  wipe_new_disk_as_required "${NEW_DISK_PATH}"
-  format_partitions_on_new_root_mirror_disk "${NEW_DISK_PATH}" "${ZFS_DEVICE_PATH}"
-  label_existing_zfs_partition "${NEW_DISK_PATH}"
-  set_bootcode_on_new_root_mirror_disk "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
-  geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
-  enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
-
-  attach_new_device_to_existing_zfs_device_in_mirror \
-    "${enc_mod_part_label_path}" \
-    "${ZFS_DEVICE_PATH}" \
-    "${POOL}"
+  exec_attach_new_disk_to_install_mirror "${NEW_DISK_PATH}" "${ZFS_DEVICE_PATH}" "${POOL}"
 }
 
 do_attach_device_as_is_to_mirror() {
@@ -1505,6 +1610,8 @@ main() {
     do_add_write_cache_disk_to_pool
   elif [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ]; then
     do_remove_write_cache_vdev_from_pool
+  elif [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ]; then
+    do_label_devices_in_install_mirror
   elif [ "${SCRUB_POOL_DATA}" = 'true' ]; then
     do_scrub_pool_data
   elif [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ]; then
