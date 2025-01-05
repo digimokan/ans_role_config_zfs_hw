@@ -42,6 +42,7 @@ ATTACH_DEVICE_AS_IS_TO_MIRROR='false'
 ONLINE_DEVICE_INTO_POOL='false'
 DETACH_DEVICE_FROM_MIRROR='false'
 REMOVE_VDEV_FROM_POOL='false'
+DESTROY_POOL='false'
 
 # Mutable User Options
 GPT_LABEL_PATH=""
@@ -87,6 +88,7 @@ print_usage() {
   printf "  %s  --online-device-into-pool                                   -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  --detach-device-from-mirror                                 -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  --remove-vdev-from-pool                                     -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  --destroy-pool                                                                                  -P <pool_name>\n" "${PROG_NAME}"
   printf "DETAILS:\n"
   printf "  -h, --help\n"
   printf "      print this help message\n"
@@ -119,13 +121,15 @@ print_usage() {
   printf "  --attach-new-disk-to-install-mirror\n"
   printf "      format, partition, and attach a new disk to a device in an install pool, creating a mirror-vdev\n"
   printf "  --attach-device-as-is-to-mirror\n"
-  printf "      attach a disk's existing zfs partition to a device in a root pool, creating a mirror-vdev\n"
+  printf "      attach any disk/partition/label to a device in a pool, creating a mirror-vdev\n"
   printf "  --online-device-into-pool\n"
   printf "      online an offline device, making it an active part of a pool\n"
   printf "  --detach-device-from-mirror\n"
   printf "      detach a (possibly bad) device from a mirror (offlines + detaches device)\n"
   printf "  --remove-vdev-from-pool\n"
   printf "      remove a root/storage vdev from a pool (consolidates data, but leaves status artifacts!)\n"
+  printf "  --destroy-pool\n"
+  printf "      destroy a (possibly active) pool (Note: can actually be imported after destroy)\n"
   printf "  -L <gpt_label_path>, --gpt-label=<gpt_label_path>\n"
   printf "      a GPT-labeled disk partition, that is a device in a zfs vdev\n"
   printf "  -C <zfs_device_path>, --zfs-device=<zfs_device_path>\n"
@@ -221,6 +225,8 @@ get_cmd_opts() {
             detach-device-from-mirror=*)            handle_illegal_long_option_arg "${long_opt_name}" ;;
             remove-vdev-from-pool)                  handle_remove_vdev_from_pool ;;
             remove-vdev-from-pool=*)                handle_illegal_long_option_arg "${long_opt_name}" ;;
+            destroy-pool)                           handle_destroy_pool ;;
+            destroy-pool=*)                         handle_illegal_long_option_arg "${long_opt_name}" ;;
             gpt-label=?*)                           handle_gpt_label "${long_opt_arg}" ;;
             gpt-label*)                             handle_missing_long_option_arg "${long_opt_name}" ;;
             zfs-device=?*)                          handle_zfs_device "${long_opt_arg}" ;;
@@ -339,7 +345,8 @@ handle_print_help_menu() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   PRINT_HELP_MENU='true'
@@ -363,7 +370,8 @@ handle_list_pools_status() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   LIST_POOLS_STATUS='true'
@@ -387,7 +395,8 @@ handle_create_storage_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   CREATE_STORAGE_POOL='true'
@@ -411,7 +420,8 @@ handle_attach_new_disk_to_boot_mirror() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_NEW_DISK_TO_BOOT_MIRROR='true'
@@ -435,7 +445,8 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_NEW_DISK_TO_STORAGE_MIRROR='true'
@@ -459,7 +470,8 @@ handle_detach_disk_from_mirror() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   DETACH_DISK_FROM_MIRROR='true'
@@ -483,7 +495,8 @@ handle_add_vdev_to_storage_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ADD_VDEV_TO_STORAGE_POOL='true'
@@ -507,7 +520,8 @@ handle_add_read_cache_disk_to_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ADD_READ_CACHE_DISK_TO_POOL='true'
@@ -531,7 +545,8 @@ handle_remove_read_cache_disk_from_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   REMOVE_READ_CACHE_DISK_FROM_POOL='true'
@@ -555,7 +570,8 @@ handle_add_write_cache_disk_to_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ADD_WRITE_CACHE_DISK_TO_POOL='true'
@@ -579,7 +595,8 @@ handle_remove_write_cache_vdev_from_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   REMOVE_WRITE_CACHE_VDEV_FROM_POOL='true'
@@ -603,7 +620,8 @@ handle_scrub_pool_data() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   SCRUB_POOL_DATA='true'
@@ -627,7 +645,8 @@ handle_label_devices_in_install_mirror() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   LABEL_DEVICES_IN_INSTALL_MIRROR='true'
@@ -651,7 +670,8 @@ handle_offline_device_from_pool() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   OFFLINE_DEVICE_FROM_POOL='true'
@@ -675,7 +695,8 @@ handle_attach_new_disk_to_install_mirror() {
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR='true'
@@ -699,7 +720,8 @@ handle_attach_device_as_is_to_mirror() {
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ATTACH_DEVICE_AS_IS_TO_MIRROR='true'
@@ -723,7 +745,8 @@ handle_online_device_into_pool() {
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   ONLINE_DEVICE_INTO_POOL='true'
@@ -747,7 +770,8 @@ handle_detach_device_from_mirror() {
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
-     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   DETACH_DEVICE_FROM_MIRROR='true'
@@ -771,10 +795,36 @@ handle_remove_vdev_from_pool() {
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
      [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
      [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
-     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ]; then
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   REMOVE_VDEV_FROM_POOL='true'
+}
+
+handle_destroy_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_BOOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${DETACH_DISK_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
+     [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  DESTROY_POOL='true'
 }
 
 handle_gpt_label() {
@@ -814,7 +864,7 @@ validate_whole_disk_name_or_path() {
 
   try_silent_with_exit \
     "camcontrol identify ${whole_disk_name_or_path} 1> /dev/null 2>&1" \
-    "${whole_disk_name_or_path} must be a valid whole disk" 255
+    "\"${whole_disk_name_or_path}\" must be a valid whole disk" 255
 }
 
 validate_string_is_unsigned_integer() {
@@ -822,10 +872,10 @@ validate_string_is_unsigned_integer() {
 
   try_silent_with_exit \
     "test ! -z ${str}" \
-    "${str} must not be an empty string" 255
+    "\"${str}\" must not be an empty string" 255
   try_silent_with_exit \
     "test \"${str}\" -eq \"${str}\"" \
-    "${str} must be an unsigned integer" 255
+    "\"${str}\" must be an unsigned integer" 255
 }
 
 validate_partition_without_extension() {
@@ -845,7 +895,7 @@ validate_active_device_in_vdev() {
 
   try_silent_with_exit \
     "zpool list -v -P ${pool} | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
-    "${device} must be an active zfs device in a vdev in pool ${pool}" 255
+    "\"${device}\" must be an active zfs device in a vdev in pool \"${pool}\"" 255
 }
 
 validate_not_active_device_in_vdev() {
@@ -853,7 +903,7 @@ validate_not_active_device_in_vdev() {
 
   try_silent_with_exit \
     "! zpool list -v -P | grep \"${device}\" 1> /dev/null" \
-    "${device} must not be an active zfs device in a vdev" 255
+    "\"${device}\" must not be an active zfs device in a vdev" 255
 }
 
 validate_not_active_non_cache_device_in_vdev() {
@@ -870,7 +920,7 @@ validate_item_is_full_disk() {
 
   try_silent_with_exit \
     "camcontrol identify ${item} 1> /dev/null 2>&1" \
-    "${item} must be a full disk, not a disk partition" 255
+    "\"${item}\" must be a full disk, not a disk partition" 255
 }
 
 validate_item_is_not_full_disk() {
@@ -878,7 +928,7 @@ validate_item_is_not_full_disk() {
 
   try_silent_with_exit \
     "! camcontrol identify ${item} 1> /dev/null 2>&1" \
-    "${item} must be a partition, not a path to a full disk" 255
+    "\"${item}\" must be a partition, not a path to a full disk" 255
 }
 
 validate_file_has_extension() {
@@ -946,7 +996,7 @@ validate_zfs_vdev() {
 
   try_silent_with_exit \
     "zpool get -H -o value parent ${pool} ${vdev_name} 2> /dev/null | grep ${pool} 1> /dev/null 2>&1" \
-    "${vdev_name} is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
+    "\"${vdev_name}\" is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
 }
 
 validate_pool_has_read_cache_disk() {
@@ -1015,7 +1065,7 @@ check_vdev_option() {
   validate_zfs_vdev "${ZFS_VDEV}" "${POOL}"
 }
 
-check_pool_option_is_root_pool() {
+check_pool_option_is_boot_pool() {
   pool="${1}"
 
   pool_mounted_on_root_dir="$(zfs get -H -o name mountpoint '/' | awk -F '/' '{print $1}')"
@@ -1024,7 +1074,7 @@ check_pool_option_is_root_pool() {
   fi
 }
 
-check_pool_option_is_not_root_pool() {
+check_pool_option_is_not_boot_pool() {
   pool="${1}"
 
   pool_mounted_on_root_dir="$(zfs get -H -o name mountpoint '/' | awk -F '/' '{print $1}')"
@@ -1434,7 +1484,7 @@ do_list_pools_status() {
 do_create_storage_pool() {
   check_running_as_root
   check_whole_disk_option
-  check_pool_option_is_not_root_pool "${POOL}"
+  check_pool_option_is_not_boot_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
@@ -1453,7 +1503,7 @@ do_attach_new_disk_to_boot_mirror() {
   check_whole_disk_option
   check_gpt_label_option
   check_encrypt_pswd_option_supplied_if_req "${GPT_LABEL_PATH}" "--gpt-label"
-  check_pool_option_is_root_pool "${POOL}"
+  check_pool_option_is_boot_pool "${POOL}"
 
   exec_attach_new_disk_to_boot_mirror "${NEW_DISK_PATH}" "${GPT_LABEL_PATH}" "${POOL}"
 }
@@ -1463,7 +1513,7 @@ do_attach_new_disk_to_storage_mirror() {
   check_whole_disk_option
   check_gpt_label_option
   check_encrypt_pswd_option_is_not_specified
-  check_pool_option_is_not_root_pool "${POOL}"
+  check_pool_option_is_not_boot_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
   validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
@@ -1493,7 +1543,7 @@ do_add_vdev_to_storage_pool() {
   check_zfs_device_option_is_not_specified
   check_whole_disk_option
   check_encrypt_pswd_option_is_not_specified
-  check_pool_option_is_not_root_pool "${POOL}"
+  check_pool_option_is_not_boot_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
@@ -1554,7 +1604,7 @@ do_remove_write_cache_vdev_from_pool() {
 do_label_devices_in_install_mirror() {
   check_running_as_root
   check_vdev_option
-  check_pool_option_is_root_pool "${POOL}"
+  check_pool_option_is_boot_pool "${POOL}"
   check_encrypt_pswd_option_is_not_specified
 
   mirror_device_list="$(zpool get -Ho value children "${POOL}" "${ZFS_VDEV}")"
@@ -1600,7 +1650,7 @@ do_attach_new_disk_to_install_mirror() {
   check_whole_disk_option
   check_zfs_device_option
   check_encrypt_pswd_option_supplied_if_req "${ZFS_DEVICE_PATH}" "--zfs-device"
-  check_pool_option_is_root_pool "${POOL}"
+  check_pool_option_is_boot_pool "${POOL}"
 
   exec_attach_new_disk_to_install_mirror "${NEW_DISK_PATH}" "${ZFS_DEVICE_PATH}" "${POOL}"
 }
@@ -1609,7 +1659,7 @@ do_attach_device_as_is_to_mirror() {
   check_running_as_root
   check_device_option
   check_zfs_device_option
-  check_pool_option_is_root_pool "${POOL}"
+  check_pool_option_is_boot_pool "${POOL}"
 
   attach_new_device_to_existing_zfs_device_in_mirror \
     "${NON_ZFS_DEVICE_PATH}" \
@@ -1641,6 +1691,15 @@ do_remove_vdev_from_pool() {
   try_silent_print_with_exit \
     "zpool remove -w ${POOL} ${ZFS_VDEV}" \
     "removing vdev \"${ZFS_VDEV}\" from pool \"${POOL}\" and consolidating data into remaining vdevs" 120
+}
+
+do_destroy_pool() {
+  check_running_as_root
+  check_pool_option_is_not_boot_pool "${POOL}"
+
+  try_silent_print_with_exit \
+    "zpool destroy ${POOL}" \
+    "destroying pool \"${POOL}\" (NOTE: it *can* be imported after destroy)" 120
 }
 
 # MAIN SCRIPT:
@@ -1686,6 +1745,8 @@ main() {
     do_detach_device_from_mirror
   elif [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ]; then
     do_remove_vdev_from_pool
+  elif [ "${DESTROY_POOL}" = 'true' ]; then
+    do_destroy_pool
   else
     quit_with_err_msg "no valid option selected" 255
   fi
