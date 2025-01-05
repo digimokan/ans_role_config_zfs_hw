@@ -69,14 +69,14 @@ print_usage() {
   printf "  %s  -h|--help\n" "${PROG_NAME}"
   printf "  %s  -l|--list-pools-status\n" "${PROG_NAME}"
   printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                        [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
-  printf "  %s  -r|--attach-new-disk-to-boot-mirror     -K <new_disk_path>  -G <gpt_label_path>   [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -b|--attach-new-disk-to-boot-mirror     -K <new_disk_path>  -G <gpt_label_path>   [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -a|--add-vdev-to-storage-pool           -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -v|--add-vdev-to-storage-pool           -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-device-from-mirror                              -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -y|--add-read-cache-disk-to-pool        -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -w|--remove-read-cache-disk-from-pool                       -K <disk_path>                     [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -q|--add-write-cache-disk-to-pool       -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -o|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -r|--add-read-cache-disk-to-pool        -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -x|--remove-read-cache-disk-from-pool                       -K <disk_path>                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -w|--add-write-cache-disk-to-pool       -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -y|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                           [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY OPERATIONS:\n"
@@ -92,21 +92,21 @@ print_usage() {
   printf "      list status of all pools, along with their vdevs and devices\n"
   printf "  -c, --create-storage-pool\n"
   printf "      create a new storage pool from a new whole disk\n"
-  printf "  -r, --attach-new-disk-to-boot-mirror\n"
+  printf "  -b, --attach-new-disk-to-boot-mirror\n"
   printf "      format, partition, and attach a new disk to a GPT-labeled device in an boot pool, creating a mirror-vdev\n"
   printf "  -s, --attach-new-disk-to-storage-mirror\n"
   printf "      attach a new disk to a device in a storage pool, creating a mirror-vdev\n"
-  printf "  -a, --add-vdev-to-storage-pool\n"
+  printf "  -v, --add-vdev-to-storage-pool\n"
   printf "      add a new disk to a storage pool, as a single-disk vdev\n"
   printf "  -d, --detach-device-from-mirror\n"
   printf "      detach a (possibly bad) device from a mirror (offlines + detaches device)\n"
-  printf "  -y, --add-read-cache-disk-to-pool\n"
+  printf "  -r, --add-read-cache-disk-to-pool\n"
   printf "      add a new disk to the pool as a Level 2 Adjustable Replacement Cache (do not mirror)\n"
-  printf "  -w, --remove-read-cache-disk-from-pool\n"
+  printf "  -x, --remove-read-cache-disk-from-pool\n"
   printf "      remove a single-disk Level 2 Adjustable Replacement Cache from the pool\n"
-  printf "  -q, --add-write-cache-disk-to-pool\n"
+  printf "  -w, --add-write-cache-disk-to-pool\n"
   printf "      add a new disk to the pool as a Separate ZFS Intent Log (SLOG) (should be mirrored)\n"
-  printf "  -o, --remove-write-cache-vdev-from-pool\n"
+  printf "  -y, --remove-write-cache-vdev-from-pool\n"
   printf "      remove the Separate ZFS Intent Log (SLOG) vdev from the pool\n"
   printf "  -j, --label-devices-in-install-mirror\n"
   printf "      reformat install-mirror devices and attach them to mirror by GPT label\n"
@@ -152,20 +152,20 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcrsadywqojuG:C:T:K:V:M:E:P:-:' option; do
+  while getopts ':hlcbsvdrxwyjuG:C:T:K:V:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
       l)  handle_list_pools_status ;;
       c)  handle_create_storage_pool ;;
-      r)  handle_attach_new_disk_to_boot_mirror ;;
+      b)  handle_attach_new_disk_to_boot_mirror ;;
       s)  handle_attach_new_disk_to_storage_mirror ;;
-      a)  handle_add_vdev_to_storage_pool ;;
+      v)  handle_add_vdev_to_storage_pool ;;
       d)  handle_detach_device_from_mirror ;;
-      y)  handle_add_read_cache_disk_to_pool ;;
-      w)  handle_remove_read_cache_disk_from_pool ;;
-      q)  handle_add_write_cache_disk_to_pool ;;
-      o)  handle_remove_write_cache_vdev_from_pool ;;
+      r)  handle_add_read_cache_disk_to_pool ;;
+      x)  handle_remove_read_cache_disk_from_pool ;;
+      w)  handle_add_write_cache_disk_to_pool ;;
+      y)  handle_remove_write_cache_vdev_from_pool ;;
       j)  handle_label_devices_in_install_mirror ;;
       u)  handle_scrub_pool_data ;;
       G)  handle_gpt_label "${short_opt_arg}" ;;
