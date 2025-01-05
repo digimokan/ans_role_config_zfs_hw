@@ -71,7 +71,7 @@ print_usage() {
   printf "  %s  -l|--list-pools-status\n" "${PROG_NAME}"
   printf "  %s  -c|--create-storage-pool                -K <new_disk_path>                        [-M <path>]   -P <pool_name>\n" "${PROG_NAME}"
   printf "  %s  -b|--attach-new-disk-to-boot-mirror     -K <new_disk_path>  -L <gpt_label_path>   [-E <pswd>]  [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -C <zfs_device_path>               [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -s|--attach-new-disk-to-storage-mirror  -K <new_disk_path>  -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -d|--detach-disk-from-mirror                                -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -v|--add-vdev-to-storage-pool           -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -r|--add-read-cache-disk-to-pool        -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
@@ -1461,18 +1461,17 @@ do_attach_new_disk_to_boot_mirror() {
 do_attach_new_disk_to_storage_mirror() {
   check_running_as_root
   check_whole_disk_option
-  check_zfs_device_option
+  check_gpt_label_option
   check_encrypt_pswd_option_is_not_specified
   check_pool_option_is_not_root_pool "${POOL}"
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
-  validate_active_device_in_vdev "${ZFS_DEVICE_PATH}" "${POOL}"
-  validate_item_is_full_disk "${ZFS_DEVICE_PATH}"
+  validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   attach_new_device_to_existing_zfs_device_in_mirror \
     "${NEW_DISK_PATH}" \
-    "${ZFS_DEVICE_PATH}" \
+    "${GPT_LABEL_PATH}" \
     "${POOL}"
 }
 
