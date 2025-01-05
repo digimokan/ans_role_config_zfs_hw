@@ -1421,8 +1421,6 @@ do_list_pools_status() {
   quit_if_rc_not_zero "${?}" "error getting zpool status" 5
   printf "*********** STATUS OF ALL POOLS, ALONG WITH THEIR VDEVS AND DEVICES ************\n"
   printf "%s\n" "${pools_status}"
-  printf "NOTE:\n"
-  printf "Device names will change on boot, to maintain continuous 0, 1, n device numbering.\n"
 
   pools_health="$(zpool get -H -o value health)"
   quit_if_rc_not_zero "${?}" "error getting zpool health" 5
