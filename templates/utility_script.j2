@@ -1548,9 +1548,12 @@ do_add_vdev_to_storage_pool() {
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+
   try_silent_print_with_exit \
-    "zpool add ${POOL} \"${NEW_DISK_PATH}\"" \
-    "adding disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\" as single-disk vdev" 120
+    "zpool add ${POOL} \"${gpt_part_label_path}\"" \
+    "adding disk \"${gpt_part_label_path}\" to pool \"${POOL}\" as single-disk vdev" 120
 }
 
 do_add_read_cache_disk_to_pool() {
