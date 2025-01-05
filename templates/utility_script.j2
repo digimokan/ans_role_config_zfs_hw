@@ -781,12 +781,14 @@ validate_string_is_unsigned_integer() {
 }
 
 validate_partition_without_extension() {
-  # Note: this basename must not have a file extension
-  partition_basename="${1}"
+  # Note: this may be a basename or path, but must not have a file extension
+  partition="${1}"
+
+  part_name="$(print_filename_without_extension "${partition}")"
 
   try_silent_with_exit \
-    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${partition_basename} 1> /dev/null 2>&1" \
-    "\"${partition_basename}\" must be a valid partition" 255
+    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${part_name} 1> /dev/null 2>&1" \
+    "\"${part_name}\" must be a valid partition" 255
 }
 
 validate_active_device_in_vdev() {
