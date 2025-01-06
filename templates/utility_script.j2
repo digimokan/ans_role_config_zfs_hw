@@ -76,7 +76,7 @@ print_usage() {
   printf "  %s  -d|--detach-disk-from-mirror                                -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -v|--add-vdev-to-storage-pool           -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -r|--add-read-cache-disk-to-pool        -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
-  printf "  %s  -x|--remove-read-cache-disk-from-pool                       -K <disk_path>                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -x|--remove-read-cache-disk-from-pool                       -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -w|--add-write-cache-disk-to-pool       -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -y|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
@@ -1563,22 +1563,25 @@ do_add_read_cache_disk_to_pool() {
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+
   try_silent_print_with_exit \
-    "zpool add ${POOL} cache \"${NEW_DISK_PATH}\"" \
-    "adding read cache disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\"" 60
+    "zpool add ${POOL} cache \"${gpt_part_label_path}\"" \
+    "adding read cache disk \"${gpt_part_label_path}\" to pool \"${POOL}\"" 60
 }
 
 do_remove_read_cache_disk_from_pool() {
   check_running_as_root
-  check_whole_disk_option
+  check_gpt_label_option
 
-  validate_active_device_in_vdev "${NEW_DISK_PATH}" "${POOL}"
-  validate_not_active_non_cache_device_in_vdev "${NEW_DISK_PATH}" "${POOL}"
+  validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
+  validate_not_active_non_cache_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
   validate_pool_has_read_cache_disk "${POOL}"
 
   try_silent_print_with_exit \
-    "zpool remove -w ${POOL} ${NEW_DISK_PATH}" \
-    "removing read-cache disk \"${NEW_DISK_PATH}\" from pool \"${POOL}\"" 120
+    "zpool remove -w ${POOL} ${GPT_LABEL_PATH}" \
+    "removing read-cache disk \"${GPT_LABEL_PATH}\" from pool \"${POOL}\"" 120
 }
 
 do_add_write_cache_disk_to_pool() {
