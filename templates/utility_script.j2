@@ -1591,9 +1591,12 @@ do_add_write_cache_disk_to_pool() {
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+
   try_silent_print_with_exit \
-    "zpool add ${POOL} log \"${NEW_DISK_PATH}\"" \
-    "adding write cache disk \"${NEW_DISK_PATH}\" to pool \"${POOL}\"" 60
+    "zpool add ${POOL} log \"${gpt_part_label_path}\"" \
+    "adding write cache disk \"${gpt_part_label_path}\" to pool \"${POOL}\"" 60
 }
 
 do_remove_write_cache_vdev_from_pool() {
