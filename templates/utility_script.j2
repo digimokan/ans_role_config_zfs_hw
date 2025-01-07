@@ -960,12 +960,12 @@ validate_not_active_device_in_vdev() {
 }
 
 validate_not_active_non_cache_device_in_vdev() {
-  whole_disk_path="${1}"
+  device_path="${1}"
   pool="${2}"
 
   try_silent_with_exit \
-    "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep \"${whole_disk_path}\" 1> /dev/null 2>&1" \
-    "disk \"${whole_disk_path}\" is a normal zfs device in pool \"${pool}\" - not a read/write cache disk" 255
+    "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep \"${device_path}\" 1> /dev/null 2>&1" \
+    "disk \"${device_path}\" is a normal zfs device in pool \"${pool}\" - not a read/write cache disk" 255
 }
 
 validate_item_is_full_disk() {
@@ -1660,7 +1660,6 @@ do_attach_new_disk_to_write_cache_mirror() {
 
   validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
   validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
-  validate_not_active_non_cache_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
   validate_pool_has_write_cache_disk "${POOL}"
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
