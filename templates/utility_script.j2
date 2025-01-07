@@ -31,6 +31,7 @@ ADD_VDEV_TO_STORAGE_POOL='false'
 ADD_READ_CACHE_DISK_TO_POOL='false'
 REMOVE_READ_CACHE_DISK_FROM_POOL='false'
 ADD_WRITE_CACHE_DISK_TO_POOL='false'
+ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR='false'
 REMOVE_WRITE_CACHE_VDEV_FROM_POOL='false'
 LABEL_DEVICES_IN_INSTALL_MIRROR='false'
 SCRUB_POOL_DATA='false'
@@ -78,6 +79,7 @@ print_usage() {
   printf "  %s  -r|--add-read-cache-disk-to-pool        -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -x|--remove-read-cache-disk-from-pool                       -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -w|--add-write-cache-disk-to-pool       -K <new_disk_path>                                     [-P <pool_name>]\n" "${PROG_NAME}"
+  printf "  %s  -n|--attach-new-disk-to-wcache-mirror   -K <new_disk_path>  -L <gpt_label_path>                [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -y|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                           [-P <pool_name>]\n" "${PROG_NAME}"
@@ -110,6 +112,8 @@ print_usage() {
   printf "      remove a single-disk Level 2 Adjustable Replacement Cache from the pool\n"
   printf "  -w, --add-write-cache-disk-to-pool\n"
   printf "      add a new disk to the pool as a Separate ZFS Intent Log (SLOG) (should be mirrored)\n"
+  printf "  -n, --attach-new-disk-to-wcache-mirror\n"
+  printf "      attach a new disk to a device in the write-cache vdev, creating a mirror-vdev\n"
   printf "  -y, --remove-write-cache-vdev-from-pool\n"
   printf "      remove the Separate ZFS Intent Log (SLOG) vdev from the pool\n"
   printf "  -j, --label-devices-in-install-mirror\n"
@@ -160,7 +164,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcbsdvrxwyjuL:C:T:K:V:M:E:P:-:' option; do
+  while getopts ':hlcbsdvrxwnyjuL:C:T:K:V:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -173,6 +177,7 @@ get_cmd_opts() {
       r)  handle_add_read_cache_disk_to_pool ;;
       x)  handle_remove_read_cache_disk_from_pool ;;
       w)  handle_add_write_cache_disk_to_pool ;;
+      n)  handle_attach_new_disk_to_write_cache_mirror ;;
       y)  handle_remove_write_cache_vdev_from_pool ;;
       j)  handle_label_devices_in_install_mirror ;;
       u)  handle_scrub_pool_data ;;
@@ -207,6 +212,8 @@ get_cmd_opts() {
             remove-read-cache-disk-from-pool=*)     handle_illegal_long_option_arg "${long_opt_name}" ;;
             add-write-cache-disk-to-pool)           handle_add_write_cache_disk_to_pool ;;
             add-write-cache-disk-to-pool=*)         handle_illegal_long_option_arg "${long_opt_name}" ;;
+            attach-new-disk-to-wcache-mirror)       handle_attach_new_disk_to_write_cache_mirror ;;
+            attach-new-disk-to-wcache-mirror=*)     handle_illegal_long_option_arg "${long_opt_name}" ;;
             remove-write-cache-vdev-from-pool)      handle_remove_write_cache_vdev_from_pool ;;
             remove-write-cache-vdev-from-pool=*)    handle_illegal_long_option_arg "${long_opt_name}" ;;
             label-devices-in-install-mirror)        handle_label_devices_in_install_mirror ;;
@@ -337,6 +344,7 @@ handle_print_help_menu() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -362,6 +370,7 @@ handle_list_pools_status() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -387,6 +396,7 @@ handle_create_storage_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -412,6 +422,7 @@ handle_attach_new_disk_to_boot_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -437,6 +448,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -462,6 +474,7 @@ handle_detach_disk_from_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -487,6 +500,7 @@ handle_add_vdev_to_storage_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -512,6 +526,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -537,6 +552,7 @@ handle_remove_read_cache_disk_from_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -562,6 +578,7 @@ handle_add_write_cache_disk_to_pool() {
      [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -577,6 +594,32 @@ handle_add_write_cache_disk_to_pool() {
   ADD_WRITE_CACHE_DISK_TO_POOL='true'
 }
 
+handle_attach_new_disk_to_write_cache_mirror() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_BOOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${DETACH_DISK_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
+     [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR='true'
+}
+
 handle_remove_write_cache_vdev_from_pool() {
   if [ "${PRINT_HELP_MENU}" = 'true' ] || \
      [ "${LIST_POOLS_STATUS}" = 'true' ] || \
@@ -588,6 +631,7 @@ handle_remove_write_cache_vdev_from_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -613,6 +657,7 @@ handle_scrub_pool_data() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -638,6 +683,7 @@ handle_label_devices_in_install_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -663,6 +709,7 @@ handle_offline_device_from_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -688,6 +735,7 @@ handle_attach_new_disk_to_install_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -713,6 +761,7 @@ handle_attach_device_as_is_to_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -738,6 +787,7 @@ handle_online_device_into_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -763,6 +813,7 @@ handle_detach_device_from_mirror() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -788,6 +839,7 @@ handle_remove_vdev_from_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -813,6 +865,7 @@ handle_destroy_pool() {
      [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
      [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
      [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
@@ -1599,6 +1652,27 @@ do_add_write_cache_disk_to_pool() {
     "adding write cache disk \"${gpt_part_label_path}\" to pool \"${POOL}\"" 60
 }
 
+do_attach_new_disk_to_write_cache_mirror() {
+  check_running_as_root
+  check_whole_disk_option
+  check_gpt_label_option
+  check_encrypt_pswd_option_is_not_specified
+
+  validate_not_active_device_in_vdev "${NEW_DISK_PATH}"
+  validate_active_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
+  validate_not_active_non_cache_device_in_vdev "${GPT_LABEL_PATH}" "${POOL}"
+  validate_pool_has_write_cache_disk "${POOL}"
+
+  wipe_new_disk_as_required "${NEW_DISK_PATH}"
+  create_single_zfs_partition "${NEW_DISK_PATH}"
+  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+
+  attach_new_device_to_existing_zfs_device_in_mirror \
+    "${gpt_part_label_path}" \
+    "${GPT_LABEL_PATH}" \
+    "${POOL}"
+}
+
 do_remove_write_cache_vdev_from_pool() {
   check_running_as_root
   check_vdev_option
@@ -1736,6 +1810,8 @@ main() {
     do_remove_read_cache_disk_from_pool
   elif [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ]; then
     do_add_write_cache_disk_to_pool
+  elif [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ]; then
+    do_attach_new_disk_to_write_cache_mirror
   elif [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ]; then
     do_remove_write_cache_vdev_from_pool
   elif [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ]; then
