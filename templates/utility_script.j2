@@ -1278,7 +1278,7 @@ detach_disk_geli_device_as_required() {
   disk_path="${1}"
 
   disk_name="$(print_whole_disk_name "${disk_path}")"
-  geli_device_name="$(geli status | grep "${disk_name}" | tr -s ' ' | awk '{ print $1 }')"
+  geli_device_name="$(geli status 2> /dev/null | grep "${disk_name}" | tr -s ' ' | awk '{ print $1 }')"
 
   if [ "${geli_device_name}" != '' ]; then
     try_silent_print_with_exit \
