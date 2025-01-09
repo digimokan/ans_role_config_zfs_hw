@@ -1827,12 +1827,12 @@ do_label_devices_in_install_mirror() {
 do_list_importable_pools() {
   check_running_as_root
 
-  exported_pools="$(zpool import)"
+  exported_pools="$(zpool import 2>&1)"
   quit_if_rc_not_zero "${?}" "error getting zpool import" 5
   printf "*********** LIST OF ALL EXPORTED POOLS AVAILABLE FOR IMPORT ************\n"
   printf "%s\n" "${exported_pools}"
 
-  destroyed_pools="$(zpool import -D)"
+  destroyed_pools="$(zpool import -D 2>&1)"
   quit_if_rc_not_zero "${?}" "error getting zpool import -D" 5
   printf "********** LIST OF ALL DESTROYED POOLS AVAILABLE FOR IMPORT ************\n"
   printf "%s\n" "${destroyed_pools}"
