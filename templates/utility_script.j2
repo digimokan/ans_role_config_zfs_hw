@@ -35,6 +35,7 @@ ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR='false'
 REMOVE_WRITE_CACHE_VDEV_FROM_POOL='false'
 LABEL_DEVICES_IN_INSTALL_MIRROR='false'
 LIST_IMPORTABLE_POOLS='false'
+IMPORT_POOL='false'
 EXPORT_POOL='false'
 SCRUB_POOL_DATA='false'
 
@@ -85,6 +86,7 @@ print_usage() {
   printf "  %s  -y|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -g|--list-importable-pools\n" "${PROG_NAME}"
+  printf "  %s  -i|--import-pool                                                                                -P <pool_name> \n" "${PROG_NAME}"
   printf "  %s  -e|--export-pool                                                                                -P <pool_name> \n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                           [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY OPERATIONS:\n"
@@ -124,6 +126,8 @@ print_usage() {
   printf "      reformat install-mirror devices and attach them to mirror by GPT label\n"
   printf "  -g, --list-importable-pools\n"
   printf "      list all exported pools and destroyed pools available for import\n"
+  printf "  -i, --import-pool\n"
+  printf "      import (and activate) an exported or destroyed pool\n"
   printf "  -e, --export-pool\n"
   printf "      export pool for later importing (i.e. activating) on any zfs system\n"
   printf "  -u, --scrub-pool-data\n"
@@ -172,7 +176,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcbsdvrxwnyjgeuL:C:T:K:V:M:E:P:-:' option; do
+  while getopts ':hlcbsdvrxwnyjgieuL:C:T:K:V:M:E:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -189,6 +193,7 @@ get_cmd_opts() {
       y)  handle_remove_write_cache_vdev_from_pool ;;
       j)  handle_label_devices_in_install_mirror ;;
       g)  handle_list_importable_pools ;;
+      i)  handle_import_pool ;;
       e)  handle_export_pool ;;
       u)  handle_scrub_pool_data ;;
       L)  handle_gpt_label "${short_opt_arg}" ;;
@@ -230,6 +235,8 @@ get_cmd_opts() {
             label-devices-in-install-mirror=*)      handle_illegal_long_option_arg "${long_opt_name}" ;;
             list-importable-pools)                  handle_list_importable_pools ;;
             list-importable-pools=*)                handle_illegal_long_option_arg "${long_opt_name}" ;;
+            import-pool)                            handle_import_pool ;;
+            import-pool=*)                          handle_illegal_long_option_arg "${long_opt_name}" ;;
             export-pool)                            handle_export_pool ;;
             export-pool=*)                          handle_illegal_long_option_arg "${long_opt_name}" ;;
             scrub-pool-data)                        handle_scrub_pool_data ;;
@@ -362,6 +369,7 @@ handle_print_help_menu() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -390,6 +398,7 @@ handle_list_pools_status() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -418,6 +427,7 @@ handle_create_storage_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -446,6 +456,7 @@ handle_attach_new_disk_to_boot_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -474,6 +485,7 @@ handle_attach_new_disk_to_storage_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -502,6 +514,7 @@ handle_detach_disk_from_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -530,6 +543,7 @@ handle_add_vdev_to_storage_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -558,6 +572,7 @@ handle_add_read_cache_disk_to_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -586,6 +601,7 @@ handle_remove_read_cache_disk_from_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -614,6 +630,7 @@ handle_add_write_cache_disk_to_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -642,6 +659,7 @@ handle_attach_new_disk_to_write_cache_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -670,6 +688,7 @@ handle_remove_write_cache_vdev_from_pool() {
      [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -698,6 +717,7 @@ handle_list_importable_pools() {
      [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -710,6 +730,35 @@ handle_list_importable_pools() {
     quit_with_err_msg "mutually exclusive options selected" 255
   fi
   LIST_IMPORTABLE_POOLS='true'
+}
+
+handle_import_pool() {
+  if [ "${PRINT_HELP_MENU}" = 'true' ] || \
+     [ "${LIST_POOLS_STATUS}" = 'true' ] || \
+     [ "${CREATE_STORAGE_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_BOOT_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_STORAGE_MIRROR}" = 'true' ] || \
+     [ "${DETACH_DISK_FROM_MIRROR}" = 'true' ] || \
+     [ "${ADD_VDEV_TO_STORAGE_POOL}" = 'true' ] || \
+     [ "${ADD_READ_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${REMOVE_READ_CACHE_DISK_FROM_POOL}" = 'true' ] || \
+     [ "${ADD_WRITE_CACHE_DISK_TO_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
+     [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${EXPORT_POOL}" = 'true' ] || \
+     [ "${SCRUB_POOL_DATA}" = 'true' ] || \
+     [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
+     [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
+     [ "${ATTACH_DEVICE_AS_IS_TO_MIRROR}" = 'true' ] || \
+     [ "${ONLINE_DEVICE_INTO_POOL}" = 'true' ] || \
+     [ "${DETACH_DEVICE_FROM_MIRROR}" = 'true' ] || \
+     [ "${REMOVE_VDEV_FROM_POOL}" = 'true' ] || \
+     [ "${DESTROY_POOL}" = 'true' ]; then
+    quit_with_err_msg "mutually exclusive options selected" 255
+  fi
+  IMPORT_POOL='true'
 }
 
 handle_export_pool() {
@@ -727,6 +776,7 @@ handle_export_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -755,6 +805,7 @@ handle_scrub_pool_data() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -782,6 +833,7 @@ handle_label_devices_in_install_mirror() {
      [ "${ATTACH_NEW_DISK_TO_WRITE_CACHE_MIRROR}" = 'true' ] || \
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -811,6 +863,7 @@ handle_offline_device_from_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${ATTACH_NEW_DEVICE_TO_INSTALL_MIRROR}" = 'true' ] || \
@@ -839,6 +892,7 @@ handle_attach_new_disk_to_install_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -867,6 +921,7 @@ handle_attach_device_as_is_to_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -895,6 +950,7 @@ handle_online_device_into_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -923,6 +979,7 @@ handle_detach_device_from_mirror() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -951,6 +1008,7 @@ handle_remove_vdev_from_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -979,6 +1037,7 @@ handle_destroy_pool() {
      [ "${REMOVE_WRITE_CACHE_VDEV_FROM_POOL}" = 'true' ] || \
      [ "${LABEL_DEVICES_IN_INSTALL_MIRROR}" = 'true' ] || \
      [ "${LIST_IMPORTABLE_POOLS}" = 'true' ] || \
+     [ "${IMPORT_POOL}" = 'true' ] || \
      [ "${EXPORT_POOL}" = 'true' ] || \
      [ "${SCRUB_POOL_DATA}" = 'true' ] || \
      [ "${OFFLINE_DEVICE_FROM_POOL}" = 'true' ] || \
@@ -1838,6 +1897,16 @@ do_list_importable_pools() {
   printf "%s\n" "${destroyed_pools}"
 }
 
+do_import_pool() {
+  check_running_as_root
+  check_pool_option_is_not_boot_pool "${POOL}"
+  check_encrypt_pswd_option_is_not_specified
+
+  try_silent_print_with_exit \
+    "zpool import -l ${POOL}" \
+    "importing and activating pool \"${POOL}\")" 100
+}
+
 do_export_pool() {
   check_running_as_root
   check_pool_option_is_not_boot_pool "${POOL}"
@@ -1953,6 +2022,8 @@ main() {
     do_label_devices_in_install_mirror
   elif [ "${LIST_IMPORTABLE_POOLS}" = 'true' ]; then
     do_list_importable_pools
+  elif [ "${IMPORT_POOL}" = 'true' ]; then
+    do_import_pool
   elif [ "${EXPORT_POOL}" = 'true' ]; then
     do_export_pool
   elif [ "${SCRUB_POOL_DATA}" = 'true' ]; then
