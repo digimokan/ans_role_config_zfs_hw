@@ -56,6 +56,8 @@ NEW_DISK_PATH=""
 ZFS_VDEV=""
 MOUNT_POINT=""
 ENCRYPTION_PASSWORD=""
+RECOVER_DESTROYED_POOL='false'
+TEMP_POOL_NAME=""
 POOL="${DEFAULT_POOL}"
 
 # LOCAL FUNCTIONS:
@@ -86,7 +88,7 @@ print_usage() {
   printf "  %s  -y|--remove-write-cache-vdev-from-pool                      -V <vdev_name>                     [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -j|--label-devices-in-install-mirror    -V <vdev_name>                                         [-P <pool_name>]\n" "${PROG_NAME}"
   printf "  %s  -g|--list-importable-pools\n" "${PROG_NAME}"
-  printf "  %s  -i|--import-pool                                                                                -P <pool_name> \n" "${PROG_NAME}"
+  printf "  %s  -i|--import-pool                                            [-D]                  [-N]          -P <pool_name> \n" "${PROG_NAME}"
   printf "  %s  -e|--export-pool                                                                                -P <pool_name> \n" "${PROG_NAME}"
   printf "  %s  -u|--scrub-pool-data                                                                           [-P <pool_name>]\n" "${PROG_NAME}"
   printf "CONTINGENCY OPERATIONS:\n"
@@ -160,6 +162,10 @@ print_usage() {
   printf "      path to mount point (default: %s)\n" "${mountpt}"
   printf "  -E <pswd>, --encryption-password=<pswd>\n"
   printf "      a password for FreeBSD-GELI-encrypting the whole disk\n"
+  printf "  -D, --recover-destroyed-pool\n"
+  printf "      when importing pool, attempt to recover a destroyed pool\n"
+  printf "  -N <temp_name>, --temp-pool-name=<temp_name>\n"
+  printf "      when importing pool, give pool a temp name and mount it at \"/mnt/[temp_name/]\"\n"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
   printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
@@ -176,7 +182,7 @@ print_usage() {
 }
 
 get_cmd_opts() {
-  while getopts ':hlcbsdvrxwnyjgieuL:C:T:K:V:M:E:P:-:' option; do
+  while getopts ':hlcbsdvrxwnyjgieuL:C:T:K:V:M:E:DN:P:-:' option; do
     short_opt_arg="${OPTARG}"
     case "${option}" in
       h)  handle_print_help_menu ;;
@@ -203,6 +209,8 @@ get_cmd_opts() {
       V)  handle_zfs_vdev "${short_opt_arg}" ;;
       M)  handle_mount_point "${short_opt_arg}" ;;
       E)  handle_encryption_password "${short_opt_arg}" ;;
+      D)  handle_recover_destroyed_pool ;;
+      N)  handle_temp_pool_name "${short_opt_arg}" ;;
       P)  handle_pool "${short_opt_arg}" ;;
       -)  long_opt_name="${OPTARG}"
           long_opt_arg="${OPTARG#*=}"
@@ -269,6 +277,10 @@ get_cmd_opts() {
             mount-point*)                           handle_missing_long_option_arg "${long_opt_name}" ;;
             encryption-password=?*)                 handle_encryption_password "${long_opt_arg}" ;;
             encryption-password*)                   handle_missing_long_option_arg "${long_opt_name}" ;;
+            recover-destroyed-pool)                 handle_recover_destroyed_pool ;;
+            recover-destroyed-pool=*)               handle_illegal_long_option_arg "${long_opt_name}" ;;
+            temp-pool-name=?*)                      handle_temp_pool_name "${long_opt_arg}" ;;
+            temp-pool-name*)                        handle_missing_long_option_arg "${long_opt_name}" ;;
             pool=?*)                                handle_pool "${long_opt_arg}" ;;
             pool*)                                  handle_missing_long_option_arg "${long_opt_name}" ;;
             '')                                     break ;; # non-option arg starting with '-'
@@ -1077,6 +1089,14 @@ handle_mount_point() {
 
 handle_encryption_password() {
   ENCRYPTION_PASSWORD="${1}"
+}
+
+handle_recover_destroyed_pool() {
+  RECOVER_DESTROYED_POOL='true'
+}
+
+handle_temp_pool_name() {
+  TEMP_POOL_NAME="${1}"
 }
 
 handle_pool() {
@@ -1902,9 +1922,28 @@ do_import_pool() {
   check_pool_option_is_not_boot_pool "${POOL}"
   check_encrypt_pswd_option_is_not_specified
 
+  # force-import a pool that appears to be externally active/online
+  opts="${opts} -f"
+  # attempt to recover a non-importable pool by discarding last few transactions
+  opts="${opts} -F"
+  # query user for encryption keys as required for pool datasets
+  opts="${opts} -l"
+  # ignore any missing SLOG device, possibly discarding some transactions
+  opts="${opts} -m"
+
+  if [ "${RECOVER_DESTROYED_POOL}" = 'true' ]; then
+    opts="${opts} -D"
+  fi
+
+  if [ "${TEMP_POOL_NAME}" = '' ]; then
+    opts="${opts} ${POOL}"
+  else
+    opts="${opts} -t -R /mnt/${TEMP_POOL_NAME} ${POOL} ${TEMP_POOL_NAME}"
+  fi
+
   try_silent_print_with_exit \
-    "zpool import -l ${POOL}" \
-    "importing and activating pool \"${POOL}\")" 100
+    "zpool import ${opts}" \
+    "importing and activating pool \"${POOL}\"" 100
 }
 
 do_export_pool() {
