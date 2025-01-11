@@ -1922,10 +1922,10 @@ do_list_importable_pools() {
     printf "No pools available for import.\n"
   else
     if [ "${no_exported_pools}" != "${no_pools_text}" ]; then
-      printf "%s" "${exported_pools}"
+      printf "%s\n" "${exported_pools}"
     fi
     if [ "${no_destroyed_pools}" != "${no_pools_text}" ]; then
-      printf "%s" "${destroyed_pools}"
+      printf "%s\n" "${destroyed_pools}"
     fi
   fi
 }
