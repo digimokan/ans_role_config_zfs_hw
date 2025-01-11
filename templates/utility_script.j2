@@ -1906,15 +1906,24 @@ do_label_devices_in_install_mirror() {
 do_list_importable_pools() {
   check_running_as_root
 
+  printf "****** EXPORTED/DESTROYED/EXTERNALLY-ACTIVE POOLS AVAILABLE FOR IMPORT ********\n"
+
   exported_pools="$(zpool import 2>&1)"
   quit_if_rc_not_zero "${?}" "error getting zpool import" 5
-  printf "*********** LIST OF ALL EXPORTED POOLS AVAILABLE FOR IMPORT ************\n"
-  printf "%s\n" "${exported_pools}"
-
   destroyed_pools="$(zpool import -D 2>&1)"
   quit_if_rc_not_zero "${?}" "error getting zpool import -D" 5
-  printf "********** LIST OF ALL DESTROYED POOLS AVAILABLE FOR IMPORT ************\n"
-  printf "%s\n" "${destroyed_pools}"
+
+  no_pools_text='no pools available'
+  no_exported_pools="$(printf "%s" "${exported_pools}" | grep --quiet --only-matching "${no_pools_text}")"
+  no_destroyed_pools="$(printf "%s" "${destroyed_pools}" | grep --quiet --only-matching "${no_pools_text}")"
+
+  if [ "${no_exported_pools}" = "${no_pools_text}" ] && \
+     [ "${no_destroyed_pools}" = "${no_pools_text}" ]; then
+    printf "No pools available for import.\n"
+  else
+    printf "%s" "${exported_pools}"
+    printf "%s" "${destroyed_pools}"
+  fi
 }
 
 do_import_pool() {
