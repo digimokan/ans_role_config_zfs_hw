@@ -23,8 +23,6 @@ Install and configure ZFS hardware: disks, pools, vdevs, and devices.
 
 ## Supported Operating Systems
 
-* Ubuntu
-* Arch Linux
 * FreeBSD
 
 ## Requirements
