@@ -167,7 +167,7 @@ print_usage() {
   printf "  -N <temp_name>, --temp-pool-name=<temp_name>\n"
   printf "      when importing pool, give pool a temp name and mount it at \"/mnt/[temp_name/]\"\n"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
-  printf "      specify pool to query status or operate on (default: %s)\n" "${DEFAULT_POOL}"
+  printf "      specify pool-name or pool-GUID to operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
   printf "    0  ok\n"
   printf "    1  one or more devices in a pool's vdev is not online\n"
@@ -1947,9 +1947,10 @@ do_import_pool() {
     opts="${opts} -m"
   fi
 
-  pool_exported="$(zpool import 2>&1 | grep "pool:" | grep -o "\b${POOL}\b")"
-  pool_destroyed="$(zpool import -D 2>&1 | grep "pool:" | grep -o "\b${POOL}\b")"
-  if [ "${pool_destroyed}" = "${POOL}" ]; then
+  pool_destroyed_name="$(zpool import -D 2>&1 | grep "pool:" | grep -o "\b${POOL}\b")"
+  pool_destroyed_id="$(zpool import -D 2>&1 | grep "id:" | grep -o "\b${POOL}\b")"
+  if [ "${pool_destroyed_name}" = "${POOL}" ] || \
+     [ "${pool_destroyed_id}" = "${POOL}" ]; then
     opts="${opts} -D"
   fi
 
