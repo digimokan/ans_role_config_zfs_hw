@@ -1951,8 +1951,6 @@ do_import_pool() {
   pool_destroyed="$(zpool import -D 2>&1 | grep "pool:" | grep -o "\b${POOL}\b")"
   if [ "${pool_destroyed}" = "${POOL}" ]; then
     opts="${opts} -D"
-  elif [ "${pool_exported}" = '' ]; then
-    quit_with_err_msg "No pool named \"${POOL}\" available for import" 100
   fi
 
   if [ "${TEMP_POOL_NAME}" = '' ]; then
