@@ -1914,8 +1914,8 @@ do_list_importable_pools() {
   quit_if_rc_not_zero "${?}" "error getting zpool import -D" 5
 
   no_pools_text='no pools available'
-  no_exported_pools="$(printf "%s" "${exported_pools}" | grep --quiet --only-matching "${no_pools_text}")"
-  no_destroyed_pools="$(printf "%s" "${destroyed_pools}" | grep --quiet --only-matching "${no_pools_text}")"
+  no_exported_pools="$(printf "%s" "${exported_pools}" | grep -o "${no_pools_text}")"
+  no_destroyed_pools="$(printf "%s" "${destroyed_pools}" | grep -o "${no_pools_text}")"
 
   if [ "${no_exported_pools}" = "${no_pools_text}" ] && \
      [ "${no_destroyed_pools}" = "${no_pools_text}" ]; then
@@ -1936,7 +1936,7 @@ do_import_pool() {
   check_encrypt_pswd_option_is_not_specified
 
   # force-import a pool that appears to be externally active/online
-  opts="${opts} -f"
+  opts="-f"
   # query user for encryption keys as required for pool datasets
   opts="${opts} -l"
 
