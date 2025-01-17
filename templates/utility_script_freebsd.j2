@@ -17,8 +17,10 @@ PROG_NAME="$(basename "${0}")"
 readonly PROG_NAME
 DEFAULT_POOL='{{ cfg_zfs_hw_default_pool }}'
 readonly DEFAULT_POOL
-DEFAULT_MOUNT_POINT_BASE="/mnt"
-readonly DEFAULT_MOUNT_POINT_BASE
+DEFAULT_PERM_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_permanent_base_mount_dir }}'
+readonly DEFAULT_PERM_MOUNT_POINT_BASE
+DEFAULT_TEMP_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_temp_base_mount_dir }}'
+readonly DEFAULT_TEMP_MOUNT_POINT_BASE
 
 # Mutable User Normal Cmd Option Selections
 PRINT_HELP_MENU='false'
@@ -54,7 +56,7 @@ ZFS_DEVICE_PATH=""
 NON_ZFS_DEVICE_PATH=""
 NEW_DISK_PATH=""
 ZFS_VDEV=""
-MOUNT_POINT=""
+PERM_MOUNT_POINT=""
 ENCRYPTION_PASSWORD=""
 IGNORE_IMPORT_ERRORS='false'
 TEMP_POOL_NAME=""
@@ -71,7 +73,8 @@ print_usage() {
     i=$((i + 1))
   done
 
-  mountpt="${DEFAULT_MOUNT_POINT_BASE}/[pool-name]"
+  perm_mountpt="${DEFAULT_PERM_MOUNT_POINT_BASE}/pool_name/"
+  temp_mountpt="${DEFAULT_TEMP_MOUNT_POINT_BASE}/temp_name/"
 
   printf "NORMAL OPERATIONS:\n"
   printf "  %s  -h|--help\n" "${PROG_NAME}"
@@ -158,14 +161,14 @@ print_usage() {
   printf "      a path to a whole disk\n"
   printf "  -V <vdev_name>, --zfs-vdev=<vdev_name>\n"
   printf "      a zfs vdev (could be single disk, or a mirror containing multiple devices)\n"
-  printf "  -M <path>, --mount-point=<path>\n"
-  printf "      path to mount point (default: %s)\n" "${mountpt}"
+  printf "  -M <path>, --permanent-mount-point=<path>\n"
+  printf "      path to permanent mount point (default: \"%s\")\n" "${perm_mountpt}"
   printf "  -E <pswd>, --encryption-password=<pswd>\n"
   printf "      a password for FreeBSD-GELI-encrypting the whole disk\n"
   printf "  -R, --ignore-import-errors\n"
   printf "      when importing pool, ignore errors (may lose some recent transactions)\n"
   printf "  -N <temp_name>, --temp-pool-name=<temp_name>\n"
-  printf "      when importing pool, give pool a temp name and mount it at \"/mnt/[temp_name/]\"\n"
+  printf "      when importing pool, give pool a temp name and mount it at \"%s\"\n" "${temp_mountpt}"
   printf "  -P <pool_name>, --pool=<pool_name>\n"
   printf "      specify pool-name or pool-GUID to operate on (default: %s)\n" "${DEFAULT_POOL}"
   printf "EXIT CODES:\n"
@@ -207,7 +210,7 @@ get_cmd_opts() {
       T)  handle_device "${short_opt_arg}" ;;
       K)  handle_whole_disk "${short_opt_arg}" ;;
       V)  handle_zfs_vdev "${short_opt_arg}" ;;
-      M)  handle_mount_point "${short_opt_arg}" ;;
+      M)  handle_permanent_mount_point "${short_opt_arg}" ;;
       E)  handle_encryption_password "${short_opt_arg}" ;;
       R)  handle_ignore_import_errors ;;
       N)  handle_temp_pool_name "${short_opt_arg}" ;;
@@ -273,8 +276,8 @@ get_cmd_opts() {
             whole-disk*)                            handle_missing_long_option_arg "${long_opt_name}" ;;
             zfs-vdev=?*)                            handle_zfs_vdev "${long_opt_arg}" ;;
             zfs-vdev*)                              handle_missing_long_option_arg "${long_opt_name}" ;;
-            mount-point=?*)                         handle_mount_point "${long_opt_arg}" ;;
-            mount-point*)                           handle_missing_long_option_arg "${long_opt_name}" ;;
+            permanent-mount-point=?*)               handle_permanent_mount_point "${long_opt_arg}" ;;
+            permanent-mount-point*)                 handle_missing_long_option_arg "${long_opt_name}" ;;
             encryption-password=?*)                 handle_encryption_password "${long_opt_arg}" ;;
             encryption-password*)                   handle_missing_long_option_arg "${long_opt_name}" ;;
             ignore-import-errors)                   handle_ignore_import_errors ;;
@@ -1083,8 +1086,8 @@ handle_zfs_vdev() {
   ZFS_VDEV="${1}"
 }
 
-handle_mount_point() {
-  MOUNT_POINT="${1}"
+handle_permanent_mount_point() {
+  PERM_MOUNT_POINT="${1}"
 }
 
 handle_encryption_password() {
@@ -1424,15 +1427,15 @@ print_whole_disk_path() {
   printf "%s" "${path_to_whole_disk}"
 }
 
-print_mount_point() {
-  mount_point_base="${1}"
-  user_specified_mount_point="${2}"
+print_perm_mount_point() {
+  perm_mount_point_base="${1}"
+  user_specified_perm_mount_point="${2}"
   pool="${3}"
 
-  if [ "${user_specified_mount_point}" = '' ]; then
-    printf "%s/%s" "${mount_point_base}" "${pool}"
+  if [ "${user_specified_perm_mount_point}" = '' ]; then
+    printf "%s/%s" "${perm_mount_point_base}" "${pool}"
   else
-    printf "%s" "${user_specified_mount_point}"
+    printf "%s" "${user_specified_perm_mount_point}"
   fi
 }
 
@@ -1736,7 +1739,7 @@ do_create_storage_pool() {
   create_single_zfs_partition "${NEW_DISK_PATH}"
   gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
 
-  mount_point="$(print_mount_point "${DEFAULT_MOUNT_POINT_BASE}" "${MOUNT_POINT}" "${POOL}")"
+  mount_point="$(print_perm_mount_point "${DEFAULT_PERM_MOUNT_POINT_BASE}" "${PERM_MOUNT_POINT}" "${POOL}")"
   try_silent_print_with_exit \
     "zpool create -f -m \"${mount_point}\" ${POOL} \"${gpt_part_label_path}\"" \
     "creating new storage pool from single disk \"${NEW_DISK_PATH}\", mounted at \"${mount_point}\"," 80
@@ -1957,7 +1960,9 @@ do_import_pool() {
   if [ "${TEMP_POOL_NAME}" = '' ]; then
     opts="${opts} ${POOL}"
   else
-    opts="${opts} -t -R /mnt/${TEMP_POOL_NAME} ${POOL} ${TEMP_POOL_NAME}"
+    opts="${opts} -t"
+    opts="${opts} -R \"/${DEFAULT_TEMP_MOUNT_POINT_BASE}/${TEMP_POOL_NAME}\""
+    opts="${opts} ${POOL} ${TEMP_POOL_NAME}"
   fi
 
   try_silent_print_with_exit \
