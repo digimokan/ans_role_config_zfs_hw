@@ -1637,7 +1637,7 @@ attach_new_device_to_existing_zfs_device_in_mirror() {
   printf "NOTE: the following attach operation waits for the new zfs device to resilver, "
   printf "and can take 10 - 30 minutes, depending on disk size.\n"
   try_silent_print_with_exit \
-    "zpool attach -w ${pool} \"${existing_zfs_device_path}\" \"${new_device_path}\"" \
+    "zpool attach -f -w ${pool} \"${existing_zfs_device_path}\" \"${new_device_path}\"" \
     "attaching new device to existing zfs device, to create or extend the mirror," 60
 }
 
