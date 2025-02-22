@@ -1559,6 +1559,7 @@ set_legacy_bios_bootcode_on_partition_1() {
 
 set_efi_bootcode_on_partition_1() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
+  # ref: https://man.freebsd.org/cgi/man.cgi?query=boot1.efi&sektion=8&manpath=freebsd-release-ports
   whole_disk_path="${1}"
 
   new_disk_part1="${whole_disk_path}p1"
@@ -1577,14 +1578,8 @@ set_efi_bootcode_on_partition_1() {
     "mount -t msdosfs -o longnames ${new_disk_part1} \"${temp_mount}\"" \
     "mounting new disk partition 1" 20
 
-  efi_boot_dir="${temp_mount}/EFI/BOOT"
-
   try_silent_print_with_exit \
-    "mkdir -p \"${efi_boot_dir}\"" \
-    "creating EFI boot dir" 20
-
-  try_silent_print_with_exit \
-    "cp -f \"/boot/loader.efi\" \"${efi_boot_dir}/BOOTX64.efi\"" \
+    "cp -rf \"/boot/efi\" \"${temp_mount}\"" \
     "copying EFI partition content" 20
 
   try_silent_print_with_exit \
