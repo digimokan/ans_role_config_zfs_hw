@@ -1362,6 +1362,33 @@ print_filename_without_extension() {
   basename -- "${path_to_file}" ".${path_to_file##*.}"
 }
 
+print_legacy_bios_partition_number() {
+  path_to_whole_disk="${1}"
+
+  # Note: part number should be e.g. "1"
+  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-boot' | cut -d' ' -f1)"
+  validate_string_is_unsigned_integer "${part_number}"
+  printf "%s" "${part_number}"
+}
+
+print_uefi_partition_number() {
+  path_to_whole_disk="${1}"
+
+  # Note: part number should be e.g. "1"
+  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] efi' | cut -d' ' -f1)"
+  validate_string_is_unsigned_integer "${part_number}"
+  printf "%s" "${part_number}"
+}
+
+print_swap_partition_number() {
+  path_to_whole_disk="${1}"
+
+  # Note: part number should be e.g. "1"
+  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-swap' | cut -d' ' -f1)"
+  validate_string_is_unsigned_integer "${part_number}"
+  printf "%s" "${part_number}"
+}
+
 print_zfs_partition_number() {
   path_to_whole_disk="${1}"
 
@@ -1439,19 +1466,59 @@ print_perm_mount_point() {
   fi
 }
 
-print_new_gpt_partition_label() {
+print_base_gpt_partition_label() {
   disk_path="${1}"
 
   whole_disk_name="$(print_whole_disk_name "${disk_path}")"
-  two_char_disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
-  seven_char_disk_serno="$(diskinfo -s "${disk_path}" | tail -c 7)"
-  printf "%s" "${two_char_disk_type}${seven_char_disk_serno}"
+  disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
+  serno="$(diskinfo -s "${disk_path}" | tail -c 6)"
+  printf "%s" "${disk_type}${serno}"
 }
 
-print_gpt_partition_label_path() {
+print_gpt_legacy_bios_part_label() {
   disk_path="${1}"
 
-  gpt_part_label_path="/dev/gpt/$(print_new_gpt_partition_label "${disk_path}")"
+  gpt_part_label="$(print_base_gpt_partition_label "${disk_path}")"
+
+  printf "%s" "b-${gpt_part_label}"
+}
+
+print_gpt_uefi_part_label() {
+  disk_path="${1}"
+
+  gpt_part_label="$(print_base_gpt_partition_label "${disk_path}")"
+
+  printf "%s" "e-${gpt_part_label}"
+}
+
+print_efibootmgr_label() {
+  disk_path="${1}"
+
+  base_label="$(print_base_gpt_partition_label "${disk_path}")"
+
+  printf "%s" "FreeBSD OS Disk ${base_label}"
+}
+
+print_gpt_swap_part_label() {
+  disk_path="${1}"
+
+  gpt_part_label="$(print_base_gpt_partition_label "${disk_path}")"
+
+  printf "%s" "s-${gpt_part_label}"
+}
+
+print_gpt_zfs_part_label() {
+  disk_path="${1}"
+
+  gpt_part_label="$(print_base_gpt_partition_label "${disk_path}")"
+
+  printf "%s" "z-${gpt_part_label}"
+}
+
+print_gpt_zfs_part_label_path() {
+  disk_path="${1}"
+
+  gpt_part_label_path="/dev/gpt/$(print_gpt_zfs_part_label "${disk_path}")"
   validate_gpt_partition_label "${gpt_part_label_path}"
   printf "%s" "${gpt_part_label_path}"
 }
@@ -1511,7 +1578,7 @@ create_single_zfs_partition() {
     "gpart create -s gpt ${new_whole_disk_path}" \
     "creating partition table on ${new_whole_disk_path}" 20
 
-  gpt_part_label="$(print_new_gpt_partition_label "${new_whole_disk_path}")"
+  gpt_part_label="$(print_gpt_zfs_part_label "${new_whole_disk_path}")"
   try_silent_print_with_exit \
     "gpart add -t freebsd-zfs -l ${gpt_part_label} ${new_whole_disk_path}" \
     "creating single ZFS partition on ${new_whole_disk_path}" 20
@@ -1521,7 +1588,7 @@ label_existing_zfs_partition() {
   new_whole_disk_path="${1}"
 
   zfs_partition_number="$(print_zfs_partition_number "${new_whole_disk_path}")"
-  gpt_part_label="$(print_new_gpt_partition_label "${new_whole_disk_path}")"
+  gpt_part_label="$(print_gpt_zfs_part_label "${new_whole_disk_path}")"
   try_silent_print_with_exit \
     "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${new_whole_disk_path}" \
     "labeling ZFS partition on ${new_whole_disk_path}" 20
@@ -1548,56 +1615,151 @@ format_partitions_on_new_root_mirror_disk() {
     "writing partition table to new disk" 20
 }
 
-set_legacy_bios_bootcode_on_partition_1() {
+configure_legacy_bios_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   whole_disk_path="${1}"
 
+  partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
+
+  gpt_part_label="$(print_gpt_legacy_bios_part_label "${whole_disk_path}")"
   try_silent_print_with_exit \
-    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ${whole_disk_path}" \
-    "setting legacy BIOS bootcode on new disk partition 1" 20
+    "gpart modify -i ${partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
+    "labeling legacy BIOS partition ${partition_number} on ${whole_disk_path}" 20
+
+  try_silent_print_with_exit \
+    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${partition_number} ${whole_disk_path}" \
+    "setting legacy BIOS bootcode on new disk partition ${partition_number}" 20
 }
 
-set_efi_bootcode_on_partition_1() {
+configure_efi_bootmgr() {
+  # ref: https://man.freebsd.org/cgi/man.cgi?query=efibootmgr
+  whole_disk_path="${1}"
+  temp_efi_mount="${2}"
+
+  gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
+  efibootmgr_label="$(print_efibootmgr_label "${whole_disk_path}")"
+
+  search_str="Boot[0-9][0-9][0-9][0-9].*${efibootmgr_label}"
+  existing_efi_var_num="$(efibootmgr -v | grep --only-matching --regexp="${search_str}" | cut -c 5-8)"
+
+  if [ "${existing_efi_var_num}" != '' ]; then
+    try_silent_print_with_exit \
+      "efibootmgr --delete -b ${existing_efi_var_num}" \
+      "deleting existing EFI var for EFI label ${efibootmgr_label}" 20
+  fi
+
+  loader_path="efi/freebsd/loader.efi"
+  loader_tempmount_path="${temp_efi_mount}/${loader_path}"
+  try_silent_with_exit \
+    "test -f \"${loader_tempmount_path}\"" \
+    "Target EFI loader \"${loader_tempmount_path}\" does not exist in tempmount" 20
+
+  loader_exec="gpt/${gpt_uefi_part_label}:/${loader_path}"
+  try_silent_print_with_exit \
+    "efibootmgr -a -c -l \"${loader_exec}\" -L \"${efibootmgr_label}\"" \
+    "registering EFI loader \"${loader_exec}\" with efibootmgr" 20
+}
+
+configure_uefi_etc_fstab_entry() {
+  whole_disk_path="${1}"
+
+  gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
+
+  try_silent_print_with_exit \
+    "sed -i '' '/\/dev\/efiboot/d' /etc/fstab" \
+    "Removing any efi partition /etc/fstab entries added by FreeBSD installer" 20
+
+  try_silent_print_with_exit \
+    "echo '/dev/gpt/${gpt_uefi_part_label} /boot/efi msdosfs rw 2 2' >> /etc/fstab" \
+    "Adding ${gpt_uefi_part_label} efi partition entry to /etc/fstab" 20
+}
+
+configure_uefi_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   # ref: https://man.freebsd.org/cgi/man.cgi?query=boot1.efi&sektion=8&manpath=freebsd-release-ports
   whole_disk_path="${1}"
 
-  new_disk_part1="${whole_disk_path}p1"
+  uefi_part_number="$(print_uefi_partition_number "${whole_disk_path}")"
+  gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
+  uefi_partition_path="${whole_disk_path}p${uefi_part_number}"
 
   try_silent_print_with_exit \
-    "newfs_msdos -F 32 -c 1 ${new_disk_part1}" \
-    "formatting partition 1 on new disk" 20
-
-  temp_mount="/tmp/part1_efi_mount"
+    "gpart modify -i ${uefi_part_number} -l ${gpt_uefi_part_label} ${whole_disk_path}" \
+    "labeling UEFI partition ${uefi_part_number} on ${whole_disk_path}" 20
 
   try_silent_print_with_exit \
-    "mkdir -p \"${temp_mount}\"" \
-    "creating temp mountpoint" 20
+    "newfs_msdos -F 32 -c ${uefi_part_number} ${uefi_partition_path}" \
+    "formatting partition ${uefi_part_number} on new disk with FAT32" 20
+
+  temp_efi_mount="/tmp/efi_install_tempmount"
 
   try_silent_print_with_exit \
-    "mount -t msdosfs -o longnames ${new_disk_part1} \"${temp_mount}\"" \
-    "mounting new disk partition 1" 20
+    "mkdir -p \"${temp_efi_mount}\"" \
+    "creating temp mountpoint \"${temp_efi_mount}\" for EFI partition" 20
 
   try_silent_print_with_exit \
-    "cp -rf \"/boot/efi\" \"${temp_mount}\"" \
-    "copying EFI partition content" 20
+    "mount -t msdosfs -o longnames ${uefi_partition_path} \"${temp_efi_mount}\"" \
+    "mounting EFI partition ${uefi_partition_path} on temp mountpoint \"${temp_efi_mount}\"" 20
 
   try_silent_print_with_exit \
-    "umount \"${temp_mount}\"" \
-    "unmounting new disk partition 1" 20
+    "cp -rf \"/boot/efi\" \"${temp_efi_mount}\"" \
+    "copying EFI partition content to temp EFI mountpoint" 20
+
+  configure_efi_bootmgr "${whole_disk_path}" "${temp_efi_mount}"
+
+  try_silent_print_with_exit \
+    "umount \"${temp_efi_mount}\"" \
+    "unmounting EFI partition from temp mountpoint \"${temp_efi_mount}\"" 20
+
+  configure_uefi_etc_fstab_entry "${whole_disk_path}"
 }
 
-set_bootcode_on_new_root_mirror_disk() {
+configure_boot_partitions_on_new_root_mirror_disk() {
   new_whole_disk_path="${1}"
 
+  # Partitions Created With FreeBSD 14.2 on BIOS Hardware:
+  #   1. One BIOS part (part type "freebsd-boot")
+  # Partitions Created With FreeBSD 14.2 on UEFI Hardware:
+  #   1. One EFI part (part type "efi")
+  #   2. One BIOS part (part type "freebsd-boot", a just-in-case part)
+  # Refs:
+  #   https://forums.freebsd.org/threads/update-of-the-bootcodes-for-a-gpt-scheme-x64-architecture.80163/#post-509122
+  #   https://forums.freebsd.org/threads/cant-boot-on-uefi.68141/#post-406138
+
+  # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
+  configure_legacy_bios_partition "${new_whole_disk_path}"
+
   bios_type="$(sysctl -n machdep.bootmethod)"
-  if [ "${bios_type}" = 'BIOS' ]; then
-    set_legacy_bios_bootcode_on_partition_1 "${new_whole_disk_path}"
-  elif [ "${bios_type}" = 'UEFI' ]; then
-    set_efi_bootcode_on_partition_1 "${new_whole_disk_path}"
-  else
-    quit_with_err_msg "system BIOS type is not \"BIOS\" or \"UEFI\"" 20
+  if [ "${bios_type}" = 'UEFI' ]; then
+    configure_uefi_partition "${new_whole_disk_path}"
   fi
+}
+
+configure_swap_partition_on_new_root_mirror_disk() {
+  new_whole_disk_path="${1}"
+
+  swap_part_number="$(print_swap_partition_number "${whole_disk_path}")"
+  gpt_swap_part_label="$(print_gpt_swap_part_label "${whole_disk_path}")"
+
+  try_silent_print_with_exit \
+    "gpart modify -i ${swap_part_number} -l ${gpt_swap_part_label} ${whole_disk_path}" \
+    "labeling swap partition ${swap_part_number} on ${whole_disk_path}" 20
+
+  try_silent_print_with_exit \
+    "swapoff -a" \
+    "Deactivating all swap devices listed in /etc/fstab" 20
+
+  try_silent_print_with_exit \
+    "sed -i '' '/\/dev\/ad.*swap/d' /etc/fstab" \
+    "Removing any /etc/fstab swap entries that use raw disk paths" 20
+
+  try_silent_print_with_exit \
+    "echo '/dev/gpt/${gpt_swap_part_label} none swap sw 0 0' >> /etc/fstab" \
+    "Adding ${gpt_swap_part_label} swap entry to /etc/fstab" 20
+
+  try_silent_print_with_exit \
+    "swapon -a" \
+    "Activating all swap devices listed in /etc/fstab" 20
 }
 
 geli_encrypt_labeled_zfs_part_as_req() {
@@ -1670,9 +1832,10 @@ exec_attach_new_disk_to_install_mirror() {
 
   wipe_new_disk_as_required "${new_disk_path}"
   format_partitions_on_new_root_mirror_disk "${new_disk_path}" "${zfs_device_path}"
+  configure_boot_partitions_on_new_root_mirror_disk "${new_disk_path}"
+  configure_swap_partition_on_new_root_mirror_disk "${new_disk_path}"
   label_existing_zfs_partition "${new_disk_path}"
-  set_bootcode_on_new_root_mirror_disk "${new_disk_path}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${new_disk_path}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${new_disk_path}")"
   geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
   enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
 
@@ -1692,9 +1855,10 @@ exec_attach_new_disk_to_boot_mirror() {
 
   wipe_new_disk_as_required "${new_disk_path}"
   format_partitions_on_new_root_mirror_disk "${new_disk_path}" "${gpt_label_path}"
+  configure_boot_partitions_on_new_root_mirror_disk "${new_disk_path}"
+  configure_swap_partition_on_new_root_mirror_disk "${new_disk_path}"
   label_existing_zfs_partition "${new_disk_path}"
-  set_bootcode_on_new_root_mirror_disk "${new_disk_path}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${new_disk_path}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${new_disk_path}")"
   geli_encrypt_labeled_zfs_part_as_req "${gpt_part_label_path}"
   enc_mod_part_label_path="$(print_enc_mod_gpt_partition_label_path "${gpt_part_label_path}")"
 
@@ -1732,7 +1896,7 @@ do_create_storage_pool() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   mount_point="$(print_perm_mount_point "${DEFAULT_PERM_MOUNT_POINT_BASE}" "${PERM_MOUNT_POINT}" "${POOL}")"
   try_silent_print_with_exit \
@@ -1762,7 +1926,7 @@ do_attach_new_disk_to_storage_mirror() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   attach_new_device_to_existing_zfs_device_in_mirror \
     "${gpt_part_label_path}" \
@@ -1791,7 +1955,7 @@ do_add_vdev_to_storage_pool() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   try_silent_print_with_exit \
     "zpool add ${POOL} \"${gpt_part_label_path}\"" \
@@ -1806,7 +1970,7 @@ do_add_read_cache_disk_to_pool() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   try_silent_print_with_exit \
     "zpool add ${POOL} cache \"${gpt_part_label_path}\"" \
@@ -1834,7 +1998,7 @@ do_add_write_cache_disk_to_pool() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   try_silent_print_with_exit \
     "zpool add ${POOL} log \"${gpt_part_label_path}\"" \
@@ -1853,7 +2017,7 @@ do_attach_new_disk_to_write_cache_mirror() {
 
   wipe_new_disk_as_required "${NEW_DISK_PATH}"
   create_single_zfs_partition "${NEW_DISK_PATH}"
-  gpt_part_label_path="$(print_gpt_partition_label_path "${NEW_DISK_PATH}")"
+  gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
   attach_new_device_to_existing_zfs_device_in_mirror \
     "${gpt_part_label_path}" \
@@ -1895,7 +2059,7 @@ do_label_devices_in_install_mirror() {
   exec_detach_device_from_mirror "${disk_part_2}" "${POOL}"
   exec_attach_new_disk_to_install_mirror "${whole_disk_2}" "${disk_part_1}" "${POOL}"
 
-  disk_label_2="$(print_gpt_partition_label_path "${whole_disk_2}")"
+  disk_label_2="$(print_gpt_zfs_part_label_path "${whole_disk_2}")"
   exec_offline_device_from_pool "${disk_part_1}" "${POOL}"
   exec_detach_device_from_mirror "${disk_part_1}" "${POOL}"
   exec_attach_new_disk_to_boot_mirror "${whole_disk_1}" "${disk_label_2}" "${POOL}"
