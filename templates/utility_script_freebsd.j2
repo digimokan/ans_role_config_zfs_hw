@@ -1634,7 +1634,7 @@ configure_legacy_bios_partition() {
 configure_efi_bootmgr() {
   # ref: https://man.freebsd.org/cgi/man.cgi?query=efibootmgr
   whole_disk_path="${1}"
-  temp_efi_mount="${2}"
+  temp_efi_mount="${2}/efi"
 
   gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
   efibootmgr_label="$(print_efibootmgr_label "${whole_disk_path}")"
