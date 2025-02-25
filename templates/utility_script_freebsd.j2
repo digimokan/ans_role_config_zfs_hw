@@ -1747,12 +1747,16 @@ configure_swap_partition_on_new_root_mirror_disk() {
     "labeling swap partition ${swap_part_number} on ${whole_disk_path}" 20
 
   try_silent_print_with_exit \
-    "swapoff -a" \
-    "Deactivating all swap devices listed in /etc/fstab" 20
+    "sed -i '' '/\/dev\/ad.*swap/d' /etc/fstab" \
+    "Removing any /etc/fstab swap entries that use raw ad[n] disk paths" 20
 
   try_silent_print_with_exit \
-    "sed -i '' '/\/dev\/ad.*swap/d' /etc/fstab" \
-    "Removing any /etc/fstab swap entries that use raw disk paths" 20
+    "sed -i '' '/\/dev\/nd.*swap/d' /etc/fstab" \
+    "Removing any /etc/fstab swap entries that use raw nd[n] disk paths" 20
+
+  try_silent_print_with_exit \
+    "swapoff -a" \
+    "Deactivating all swap devices listed in /etc/fstab" 20
 
   try_silent_print_with_exit \
     "echo '/dev/gpt/${gpt_swap_part_label} none swap sw 0 0' >> /etc/fstab" \
