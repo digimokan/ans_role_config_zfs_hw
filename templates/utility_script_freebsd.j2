@@ -1697,9 +1697,10 @@ configure_uefi_partition() {
     "mkdir -p \"${temp_efi_mount}\"" \
     "creating temp mountpoint \"${temp_efi_mount}\" for EFI partition" 20
 
+  gpt_uefi_part_path="/dev/gpt/${gpt_uefi_part_label}"
   try_silent_print_with_exit \
-    "mount -t msdosfs -o longnames ${uefi_partition_path} \"${temp_efi_mount}\"" \
-    "mounting EFI partition ${uefi_partition_path} on temp mountpoint \"${temp_efi_mount}\"" 20
+    "mount -t msdosfs -o longnames \"${gpt_uefi_part_path}\" \"${temp_efi_mount}\"" \
+    "mounting EFI partition ${gpt_uefi_part_path} on temp mountpoint \"${temp_efi_mount}\"" 20
 
   try_silent_print_with_exit \
     "cp -rf \"/boot/efi\" \"${temp_efi_mount}\"" \
