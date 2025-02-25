@@ -1634,7 +1634,7 @@ configure_legacy_bios_partition() {
 configure_efi_bootmgr() {
   # ref: https://man.freebsd.org/cgi/man.cgi?query=efibootmgr
   whole_disk_path="${1}"
-  temp_efi_mount="${2}/efi"
+  efi_install_dir="${2}/efi"
 
   gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
   efibootmgr_label="$(print_efibootmgr_label "${whole_disk_path}")"
@@ -1649,7 +1649,7 @@ configure_efi_bootmgr() {
   fi
 
   loader_path="efi/freebsd/loader.efi"
-  loader_tempmount_path="${temp_efi_mount}/${loader_path}"
+  loader_tempmount_path="${efi_install_dir}/${loader_path}"
   try_silent_with_exit \
     "test -f \"${loader_tempmount_path}\"" \
     "Target EFI loader \"${loader_tempmount_path}\" does not exist in tempmount" 20
