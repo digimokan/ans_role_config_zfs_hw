@@ -1666,7 +1666,7 @@ configure_uefi_etc_fstab_entry() {
   gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
 
   try_silent_print_with_exit \
-    "sed -i '' '/\/dev\/efiboot/d' /etc/fstab" \
+    "sed -i '' '/\/dev\/gpt\/efiboot/d' /etc/fstab" \
     "Removing any efi partition /etc/fstab entries added by FreeBSD installer" 20
 
   try_silent_print_with_exit \
