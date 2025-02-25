@@ -1648,13 +1648,7 @@ configure_efi_bootmgr() {
       "deleting existing EFI var for EFI label ${efibootmgr_label}" 20
   fi
 
-  loader_path="efi/freebsd/loader.efi"
-  loader_tempmount_path="${efi_install_dir}/${loader_path}"
-  try_silent_with_exit \
-    "test -f \"${loader_tempmount_path}\"" \
-    "Target EFI loader \"${loader_tempmount_path}\" does not exist in tempmount" 20
-
-  loader_exec="gpt/${gpt_uefi_part_label}:/${loader_path}"
+  loader_exec="gpt/${gpt_uefi_part_label}:/EFI/BOOT/BOOTX64.EFI"
   try_silent_print_with_exit \
     "efibootmgr -a -c -l \"${loader_exec}\" -L \"${efibootmgr_label}\"" \
     "registering EFI loader \"${loader_exec}\" with efibootmgr" 20
