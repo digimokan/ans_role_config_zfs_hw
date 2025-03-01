@@ -1751,10 +1751,6 @@ configure_swap_partition_on_new_root_mirror_disk() {
     "Removing any /etc/fstab swap entries that use raw nd[n] disk paths" 20
 
   try_silent_print_with_exit \
-    "swapoff -a" \
-    "Deactivating all swap devices listed in /etc/fstab" 20
-
-  try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/${gpt_swap_part_label}/d' /etc/fstab" \
     "Removing any existing /etc/fstab swap entry for /dev/gpt/${gpt_swap_part_label}" 20
 
