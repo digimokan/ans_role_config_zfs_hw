@@ -1566,7 +1566,7 @@ wipe_new_disk_as_required() {
 
   try_silent_print_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
-    "attempting to wipe new disk's partition table"
+    "wiping new disk's partition table"
 }
 
 create_single_zfs_partition() {
