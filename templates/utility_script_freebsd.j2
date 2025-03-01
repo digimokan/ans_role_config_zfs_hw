@@ -1548,23 +1548,21 @@ detach_disk_geli_device_as_required() {
   fi
 }
 
-disable_disk_swap_device_as_required() {
-  disk_path="${1}"
+disable_all_system_swap_devices() {
+  active_swap_devices="$(swapctl -l | tail -n +2 | cut -d' ' -f1)"
 
-  swap_device_path="$(swapctl -l | grep "${disk_path}" | tr -s ' ' | cut -d' ' -f1)"
-
-  if [ "${swap_device_path}" != '' ]; then
+  printf "%s\n" "${active_swap_devices}" | while IFS="$(printf "\n.")" read -r swap_device; do
     try_silent_print_with_exit \
-      "swapoff \"${swap_device_path}\"" \
-      "disabling swap device" 20
-  fi
+      "swapoff \"${swap_device}\"" \
+      "disabling swap device \"${swap_device}\"" 20
+  done
 }
 
 wipe_new_disk_as_required() {
   new_whole_disk_path="${1}"
 
   detach_disk_geli_device_as_required "${new_whole_disk_path}"
-  disable_disk_swap_device_as_required "${new_whole_disk_path}"
+  disable_all_system_swap_devices
 
   try_total_silent_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
