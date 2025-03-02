@@ -1466,13 +1466,21 @@ print_perm_mount_point() {
   fi
 }
 
+print_disk_type_prefix() {
+  disk_path="${1}"
+
+  whole_disk_name="$(print_whole_disk_name "${disk_path}")"
+  disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -3)"
+  printf "%s" "${disk_type}"
+}
+
 print_base_gpt_partition_label() {
   disk_path="${1}"
 
   whole_disk_name="$(print_whole_disk_name "${disk_path}")"
-  disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
+  short_disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
   serno="$(diskinfo -s "${disk_path}" | tail -c 6)"
-  printf "%s" "${disk_type}${serno}"
+  printf "%s" "${short_disk_type}${serno}"
 }
 
 print_gpt_legacy_bios_part_label() {
@@ -1655,19 +1663,22 @@ configure_efi_bootmgr() {
 configure_uefi_etc_fstab_entry() {
   whole_disk_path="${1}"
 
-  gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
+  # Note: always mount EFI partition from disk0
+  disk_type_prefix="$(print_disk_type_prefix "${whole_disk_path}")"
+  uefi_part_number="$(print_uefi_partition_number "${whole_disk_path}")"
+  disk0_uefi_part_basename="${disk_type_prefix}p${uefi_part_number}"
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/efiboot/d' /etc/fstab" \
     "Removing any efi partition /etc/fstab entries added by FreeBSD installer" 20
 
   try_silent_print_with_exit \
-    "sed -i '' '/\/dev\/gpt\/${gpt_uefi_part_label}/d' /etc/fstab" \
-    "Removing any existing /etc/fstab swap entry for /dev/gpt/${gpt_uefi_part_label}" 20
+    "sed -i '' '/\/dev\/${disk0_uefi_part_basename}/d' /etc/fstab" \
+    "Removing any existing /etc/fstab swap entry for /dev/${disk0_uefi_part_basename}" 20
 
   try_silent_print_with_exit \
-    "echo '/dev/gpt/${gpt_uefi_part_label} /boot/efi msdosfs rw 2 2' >> /etc/fstab" \
-    "Adding ${gpt_uefi_part_label} efi partition entry to /etc/fstab" 20
+    "echo '/dev/${disk0_uefi_part_basename} /boot/efi msdosfs rw 2 2' >> /etc/fstab" \
+    "Adding ${disk0_uefi_part_basename} efi partition entry to /etc/fstab" 20
 }
 
 configure_uefi_partition() {
