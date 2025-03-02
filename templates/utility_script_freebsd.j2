@@ -1574,7 +1574,19 @@ wipe_new_disk_as_required() {
 
   try_silent_print_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
-    "wiping new disk's partition table"
+    "wiping new disk ${new_whole_disk_path} partition table"
+
+  try_silent_print_with_exit \
+    "zpool labelclear -f ${new_whole_disk_path}" \
+    "removing ZFS label info from new disk ${new_whole_disk_path}"
+
+  try_silent_print_with_exit \
+    "gpart create gpt ${new_whole_disk_path}" \
+    "overwriting ${new_whole_disk_path} with empty partition table"
+
+  try_silent_print_with_exit \
+    "gpart destroy -F ${new_whole_disk_path}" \
+    "wiping new disk ${new_whole_disk_path} 2nd time, to erase any backup GPT"
 }
 
 create_single_zfs_partition() {
@@ -1640,7 +1652,7 @@ configure_legacy_bios_partition() {
 configure_efi_bootmgr() {
   # ref: https://man.freebsd.org/cgi/man.cgi?query=efibootmgr
   whole_disk_path="${1}"
-  efi_install_dir="${2}/efi"
+  efi_loader_exec="${2}"
 
   gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
   efibootmgr_label="$(print_efibootmgr_label "${whole_disk_path}")"
@@ -1654,10 +1666,9 @@ configure_efi_bootmgr() {
       "deleting existing EFI var for EFI label ${efibootmgr_label}" 20
   fi
 
-  loader_exec="${efi_install_dir}/efi/freebsd/loader.efi"
   try_silent_print_with_exit \
-    "efibootmgr -a -c -l \"${loader_exec}\" -L \"${efibootmgr_label}\"" \
-    "registering EFI loader \"${loader_exec}\" with efibootmgr" 20
+    "efibootmgr --create --activate --loader \"${efi_loader_exec}\" --label \"${efibootmgr_label}\"" \
+    "registering EFI loader \"${efi_loader_exec}\" with efibootmgr" 20
 }
 
 configure_uefi_etc_fstab_entry() {
@@ -1684,6 +1695,7 @@ configure_uefi_etc_fstab_entry() {
 configure_uefi_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   # ref: https://man.freebsd.org/cgi/man.cgi?query=boot1.efi&sektion=8&manpath=freebsd-release-ports
+  # ref: https://github.com/freebsd/freebsd-src/blob/master/usr.sbin/bsdinstall/scripts/bootconfig
   whole_disk_path="${1}"
 
   uefi_part_number="$(print_uefi_partition_number "${whole_disk_path}")"
@@ -1695,25 +1707,30 @@ configure_uefi_partition() {
     "labeling UEFI partition ${uefi_part_number} on ${whole_disk_path}" 20
 
   try_silent_print_with_exit \
-    "newfs_msdos -F 32 -c ${uefi_part_number} ${uefi_partition_path}" \
+    "newfs_msdos -F 32 -c ${uefi_part_number} -L EFISYS ${uefi_partition_path}" \
     "formatting partition ${uefi_part_number} on new disk with FAT32" 20
 
-  temp_efi_mount="/tmp/efi_install_tempmount"
+  temp_efi_mount="$(mktemp -d /tmp/efi_install.XXXXXX)"
 
   try_silent_print_with_exit \
     "mkdir -p \"${temp_efi_mount}\"" \
     "creating temp mountpoint \"${temp_efi_mount}\" for EFI partition" 20
 
-  gpt_uefi_part_path="/dev/gpt/${gpt_uefi_part_label}"
   try_silent_print_with_exit \
-    "mount -t msdosfs -o longnames \"${gpt_uefi_part_path}\" \"${temp_efi_mount}\"" \
-    "mounting EFI partition ${gpt_uefi_part_path} on temp mountpoint \"${temp_efi_mount}\"" 20
+    "mount -t msdosfs \"${uefi_partition_path}\" \"${temp_efi_mount}\"" \
+    "mounting EFI partition ${uefi_partition_path} on temp mountpoint \"${temp_efi_mount}\"" 20
 
+  boot_loader_rel_dir="EFI/freebsd"
   try_silent_print_with_exit \
-    "cp -rf \"/boot/efi\" \"${temp_efi_mount}\"" \
-    "copying EFI partition content to temp EFI mountpoint" 20
+    "mkdir -p \"${temp_efi_mount}/${boot_loader_rel_dir}\"" \
+    "creating dir \"${temp_efi_mount}/${boot_loader_rel_dir}\" for EFI loader" 20
 
-  configure_efi_bootmgr "${whole_disk_path}" "${temp_efi_mount}"
+  target_boot_loader_exec_path="${temp_efi_mount}/${boot_loader_rel_dir}/loader.efi"
+  try_silent_print_with_exit \
+    "cp \"/boot/loader.efi\" \"${target_boot_loader_exec_path}\"" \
+    "copying existing EFI loader executable to \"${target_boot_loader_exec_path}\"" 20
+
+  configure_efi_bootmgr "${whole_disk_path}" "${target_boot_loader_exec_path}"
 
   try_silent_print_with_exit \
     "umount \"${temp_efi_mount}\"" \
