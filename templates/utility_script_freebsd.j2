@@ -1666,7 +1666,7 @@ configure_uefi_etc_fstab_entry() {
   # Note: always mount EFI partition from disk0
   disk_type_prefix="$(print_disk_type_prefix "${whole_disk_path}")"
   uefi_part_number="$(print_uefi_partition_number "${whole_disk_path}")"
-  disk0_uefi_part_basename="${disk_type_prefix}p${uefi_part_number}"
+  disk0_uefi_part_basename="${disk_type_prefix}0p${uefi_part_number}"
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/efiboot/d' /etc/fstab" \
