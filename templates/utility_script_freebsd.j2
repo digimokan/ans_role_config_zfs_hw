@@ -344,6 +344,19 @@ try_silent_print_with_exit() {
     "${err_msg}" "${err_code}"
 }
 
+try_silent_print_with_errmsg_exit() {
+  cmd="${1}"
+  op_descrip="${2}"
+  err_code="${3}"
+  msg="${4}"
+
+  printf "Now %s with \"%s\"...\n" "${op_descrip}" "${cmd}"
+  err_msg="error ${msg}"
+  try_silent_with_exit \
+    "${cmd}" \
+    "${err_msg}" "${err_code}"
+}
+
 try_total_silent_with_exit() {
   cmd="${1}"
   op_descrip="${2}"
@@ -1572,9 +1585,10 @@ wipe_new_disk_as_required() {
   detach_disk_geli_device_as_required "${new_whole_disk_path}"
   disable_all_system_swap_devices
 
-  try_silent_print_with_exit \
+  try_silent_print_with_errmsg_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
-    "wiping new disk ${new_whole_disk_path} partition table"
+    "wiping new disk ${new_whole_disk_path} partition table" \
+    "wiping new disk - is any partition still active (ZFS, SWAP, GEOM...?)"
 
   try_silent_print_with_exit \
     "zpool labelclear -f ${new_whole_disk_path}" \
