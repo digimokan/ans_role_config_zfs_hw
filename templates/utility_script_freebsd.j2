@@ -1632,9 +1632,10 @@ configure_legacy_bios_partition() {
     "gpart modify -i ${partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
     "labeling legacy BIOS partition ${partition_number} on ${whole_disk_path}" 20
 
-  try_silent_print_with_exit \
-    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${partition_number} ${whole_disk_path}" \
-    "setting legacy BIOS bootcode on new disk partition ${partition_number}" 20
+  # testing.................................................................................................
+  # try_silent_print_with_exit \
+  #   "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${partition_number} ${whole_disk_path}" \
+  #   "setting legacy BIOS bootcode on new disk partition ${partition_number}" 20
 }
 
 configure_efi_bootmgr() {
