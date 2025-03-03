@@ -1591,7 +1591,7 @@ wipe_new_disk_as_required() {
     "gpart destroy -F ${new_whole_disk_path}" \
     "wiping new disk ${new_whole_disk_path} partition table" 20
 
-  try_silent_print_with_exit \
+  try_total_silent_with_exit \
     "zpool labelclear -f ${new_whole_disk_path}" \
     "removing ZFS label info from new disk ${new_whole_disk_path}" 20
 
