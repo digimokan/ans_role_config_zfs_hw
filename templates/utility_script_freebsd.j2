@@ -1586,6 +1586,7 @@ wipe_new_disk_as_required() {
   detach_disk_geli_device_as_required "${new_whole_disk_path}"
   disable_all_system_swap_devices
 
+  # Note: attempting to destroy, with no partition table, causes error return
   try_total_silent_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
     "wiping new disk ${new_whole_disk_path} partition table" 20
@@ -1594,9 +1595,10 @@ wipe_new_disk_as_required() {
     "zpool labelclear -f ${new_whole_disk_path}" \
     "removing ZFS label info from new disk ${new_whole_disk_path}" 20
 
-  try_silent_print_with_exit \
+  try_silent_print_with_errmsg_exit \
     "gpart create -s gpt ${new_whole_disk_path}" \
-    "overwriting ${new_whole_disk_path} with empty partition table" 20
+    "overwriting ${new_whole_disk_path} with empty partition table" 20 \
+    "overwriting partition table - is any partition still active (ZFS, SWAP, GEOM...?)"
 
   try_silent_print_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
@@ -1606,10 +1608,9 @@ wipe_new_disk_as_required() {
 create_single_zfs_partition() {
   new_whole_disk_path="${1}"
 
-  try_silent_print_with_errmsg_exit \
+  try_silent_print_with_exit \
     "gpart create -s gpt ${new_whole_disk_path}" \
-    "creating partition table on ${new_whole_disk_path}" 20 \
-    "creating partition table - is any partition still active (ZFS, SWAP, GEOM...?)"
+    "creating partition table on ${new_whole_disk_path}" 20
 
   gpt_part_label="$(print_gpt_zfs_part_label "${new_whole_disk_path}")"
   try_silent_print_with_exit \
