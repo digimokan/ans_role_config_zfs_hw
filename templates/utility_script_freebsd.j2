@@ -1586,7 +1586,7 @@ wipe_new_disk_as_required() {
   detach_disk_geli_device_as_required "${new_whole_disk_path}"
   disable_all_system_swap_devices
 
-  try_silent_print_with_errmsg_exit \
+  try_total_silent_with_exit \
     "gpart destroy -F ${new_whole_disk_path}" \
     "wiping new disk ${new_whole_disk_path} partition table" 20
 
