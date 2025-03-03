@@ -1573,11 +1573,13 @@ detach_disk_geli_device_as_required() {
 disable_all_system_swap_devices() {
   active_swap_devices="$(swapctl -l | tail -n +2 | cut -d' ' -f1)"
 
-  printf "%s" "${active_swap_devices}" | while IFS="$(printf "\n.")" read -r swap_device; do
-    try_silent_print_with_exit \
-      "swapoff \"${swap_device}\"" \
-      "disabling swap device \"${swap_device}\"" 20
-  done
+  if [ "${active_swap_devices}" != '' ]; then
+    printf "%s\n" "${active_swap_devices}" | while IFS="$(printf "\n.")" read -r swap_device; do
+      try_silent_print_with_exit \
+        "swapoff \"${swap_device}\"" \
+        "disabling swap device \"${swap_device}\"" 20
+    done
+  fi
 }
 
 wipe_new_disk_as_required() {
