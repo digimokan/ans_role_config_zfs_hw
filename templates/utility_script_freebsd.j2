@@ -1377,85 +1377,85 @@ print_filename_without_extension() {
 }
 
 print_legacy_bios_partition_number() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part number should be e.g. "1"
-  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-boot' | cut -d' ' -f1)"
+  part_number="$(gpart show "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-boot' | cut -d' ' -f1)"
   validate_string_is_unsigned_integer "${part_number}"
   printf "%s" "${part_number}"
 }
 
 print_path_to_legacy_bios_partition() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part name should be e.g. "ada1p3"
   # Note: find the partition type with the legacy bios code
-  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-boot' | cut -d' ' -f1)"
+  part_name="$(gpart show -p "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-boot' | cut -d' ' -f1)"
   validate_partition_without_extension "${part_name}"
   printf "%s" "/dev/${part_name}"
 }
 
 print_uefi_partition_number() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part number should be e.g. "1"
-  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] efi' | cut -d' ' -f1)"
+  part_number="$(gpart show "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='[0-9] efi' | cut -d' ' -f1)"
   validate_string_is_unsigned_integer "${part_number}"
   printf "%s" "${part_number}"
 }
 
 print_path_to_uefi_partition() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part name should be e.g. "ada1p3"
   # Note: find the partition type with the efi code
-  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* efi' | cut -d' ' -f1)"
+  part_name="$(gpart show -p "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='\w* efi' | cut -d' ' -f1)"
   validate_partition_without_extension "${part_name}"
   printf "%s" "/dev/${part_name}"
 }
 
 print_swap_partition_number() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part number should be e.g. "1"
-  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-swap' | cut -d' ' -f1)"
+  part_number="$(gpart show "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-swap' | cut -d' ' -f1)"
   validate_string_is_unsigned_integer "${part_number}"
   printf "%s" "${part_number}"
 }
 
 print_path_to_swap_partition() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part name should be e.g. "ada1p3"
   # Note: find the partition type with the swap code
-  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-swap' | cut -d' ' -f1)"
+  part_name="$(gpart show -p "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-swap' | cut -d' ' -f1)"
   validate_partition_without_extension "${part_name}"
   printf "%s" "/dev/${part_name}"
 }
 
 print_zfs_partition_number() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part number should be e.g. "1"
-  part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-zfs' | cut -d' ' -f1)"
+  part_number="$(gpart show "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-zfs' | cut -d' ' -f1)"
   validate_string_is_unsigned_integer "${part_number}"
   printf "%s" "${part_number}"
 }
 
 print_path_to_zfs_partition_without_eli_ext() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
   # Note: part name should be e.g. "ada1p3"
   # Note: find the partition type with the zfs partition code
-  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-zfs' | cut -d' ' -f1)"
+  part_name="$(gpart show -p "${whole_disk_path}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-zfs' | cut -d' ' -f1)"
   validate_partition_without_extension "${part_name}"
   printf "%s" "/dev/${part_name}"
 }
 
 print_path_to_zfs_geli_ecrypted_partition() {
-  path_to_whole_disk="${1}"
+  whole_disk_path="${1}"
 
-  path_to_part_without_geli_ext="$(print_path_to_zfs_partition_without_eli_ext "${path_to_whole_disk}")"
+  path_to_part_without_geli_ext="$(print_path_to_zfs_partition_without_eli_ext "${whole_disk_path}")"
 
   path_to_zfs_geli_enc_part="${path_to_part_without_geli_ext}.eli"
   validate_zfs_geli_ecrypted_partition \
@@ -1493,9 +1493,9 @@ print_whole_disk_path() {
 
   part_name_without_ext="$(print_filename_without_extension "${actual_part}")"
   whole_disk_name="$(geom part status -s | grep "${part_name_without_ext}" | tr -s ' ' | cut -d' ' -f3)"
-  path_to_whole_disk="/dev/${whole_disk_name}"
-  validate_whole_disk_name_or_path "${path_to_whole_disk}"
-  printf "%s" "${path_to_whole_disk}"
+  whole_disk_path="/dev/${whole_disk_name}"
+  validate_whole_disk_name_or_path "${whole_disk_path}"
+  printf "%s" "${whole_disk_path}"
 }
 
 print_perm_mount_point() {
@@ -1613,56 +1613,56 @@ disable_all_system_swap_devices() {
 }
 
 wipe_new_disk_as_required() {
-  new_whole_disk_path="${1}"
+  whole_disk_path="${1}"
 
-  detach_disk_geli_device_as_required "${new_whole_disk_path}"
+  detach_disk_geli_device_as_required "${whole_disk_path}"
   disable_all_system_swap_devices
 
   # Note: attempting to destroy, with no partition table, causes error return
   try_total_silent_with_exit \
-    "gpart destroy -F ${new_whole_disk_path}" \
-    "wiping new disk ${new_whole_disk_path} partition table" 20
+    "gpart destroy -F ${whole_disk_path}" \
+    "wiping new disk ${whole_disk_path} partition table" 20
 
   try_total_silent_with_exit \
-    "zpool labelclear -f ${new_whole_disk_path}" \
-    "removing ZFS label info from new disk ${new_whole_disk_path}" 20
+    "zpool labelclear -f ${whole_disk_path}" \
+    "removing ZFS label info from new disk ${whole_disk_path}" 20
 
   try_silent_print_with_errmsg_exit \
-    "gpart create -s gpt ${new_whole_disk_path}" \
-    "overwriting ${new_whole_disk_path} with empty partition table" 20 \
+    "gpart create -s gpt ${whole_disk_path}" \
+    "overwriting ${whole_disk_path} with empty partition table" 20 \
     "overwriting partition table - is any partition still active (ZFS, SWAP, GEOM...?)"
 
   try_silent_print_with_exit \
-    "gpart destroy -F ${new_whole_disk_path}" \
-    "wiping new disk ${new_whole_disk_path} 2nd time, to erase any backup GPT" 20
+    "gpart destroy -F ${whole_disk_path}" \
+    "wiping new disk ${whole_disk_path} 2nd time, to erase any backup GPT" 20
 }
 
 create_single_zfs_partition() {
-  new_whole_disk_path="${1}"
+  whole_disk_path="${1}"
 
   try_silent_print_with_exit \
-    "gpart create -s gpt ${new_whole_disk_path}" \
-    "creating partition table on ${new_whole_disk_path}" 20
+    "gpart create -s gpt ${whole_disk_path}" \
+    "creating partition table on ${whole_disk_path}" 20
 
-  gpt_part_label="$(print_gpt_zfs_part_label "${new_whole_disk_path}")"
+  gpt_part_label="$(print_gpt_zfs_part_label "${whole_disk_path}")"
   try_silent_print_with_exit \
-    "gpart add -t freebsd-zfs -l ${gpt_part_label} ${new_whole_disk_path}" \
-    "creating single ZFS partition on ${new_whole_disk_path}" 20
+    "gpart add -t freebsd-zfs -l ${gpt_part_label} ${whole_disk_path}" \
+    "creating single ZFS partition on ${whole_disk_path}" 20
 
-  zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
+  zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${whole_disk_path}")"
   try_total_silent_with_exit \
     "zpool labelclear -f ${zfs_part_path}" \
     "removing ZFS label info from new disk partition ${zfs_part_path}" 20
 }
 
 label_existing_zfs_partition() {
-  new_whole_disk_path="${1}"
+  whole_disk_path="${1}"
 
-  zfs_partition_number="$(print_zfs_partition_number "${new_whole_disk_path}")"
-  gpt_part_label="$(print_gpt_zfs_part_label "${new_whole_disk_path}")"
+  zfs_partition_number="$(print_zfs_partition_number "${whole_disk_path}")"
+  gpt_part_label="$(print_gpt_zfs_part_label "${whole_disk_path}")"
   try_silent_print_with_exit \
-    "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${new_whole_disk_path}" \
-    "labeling ZFS partition on ${new_whole_disk_path}" 20
+    "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
+    "labeling ZFS partition on ${whole_disk_path}" 20
 }
 
 format_partitions_on_new_root_mirror_disk() {
@@ -1674,11 +1674,11 @@ format_partitions_on_new_root_mirror_disk() {
     "gpart create -s gpt ${new_whole_disk_path}" \
     "creating partition table on ${new_whole_disk_path}" 20
 
-  existing_whole_disk="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
+  existing_whole_disk_path="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
   part_table_path="/tmp/existing_part_table.txt"
 
   try_silent_print_with_exit \
-    "gpart backup ${existing_whole_disk} > ${part_table_path}" \
+    "gpart backup ${existing_whole_disk_path} > ${part_table_path}" \
     "copying existing disk's partition-table-format to ${part_table_path}" 20
 
   try_silent_print_with_exit \
@@ -1801,7 +1801,7 @@ configure_uefi_partition() {
 }
 
 configure_boot_partitions_on_new_root_mirror_disk() {
-  new_whole_disk_path="${1}"
+  whole_disk_path="${1}"
 
   # Partitions Created With FreeBSD 14.2 on BIOS Hardware:
   #   1. One BIOS part (part type "freebsd-boot")
@@ -1813,11 +1813,11 @@ configure_boot_partitions_on_new_root_mirror_disk() {
   #   https://forums.freebsd.org/threads/cant-boot-on-uefi.68141/#post-406138
 
   # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
-  configure_legacy_bios_partition "${new_whole_disk_path}"
+  configure_legacy_bios_partition "${whole_disk_path}"
 
   bios_type="$(sysctl -n machdep.bootmethod)"
   if [ "${bios_type}" = 'UEFI' ]; then
-    configure_uefi_partition "${new_whole_disk_path}"
+    configure_uefi_partition "${whole_disk_path}"
   fi
 }
 
