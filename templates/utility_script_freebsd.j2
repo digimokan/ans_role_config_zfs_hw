@@ -1385,6 +1385,16 @@ print_legacy_bios_partition_number() {
   printf "%s" "${part_number}"
 }
 
+print_path_to_legacy_bios_partition() {
+  path_to_whole_disk="${1}"
+
+  # Note: part name should be e.g. "ada1p3"
+  # Note: find the partition type with the legacy bios code
+  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-boot' | cut -d' ' -f1)"
+  validate_partition_without_extension "${part_name}"
+  printf "%s" "/dev/${part_name}"
+}
+
 print_uefi_partition_number() {
   path_to_whole_disk="${1}"
 
@@ -1394,6 +1404,16 @@ print_uefi_partition_number() {
   printf "%s" "${part_number}"
 }
 
+print_path_to_uefi_partition() {
+  path_to_whole_disk="${1}"
+
+  # Note: part name should be e.g. "ada1p3"
+  # Note: find the partition type with the efi code
+  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* efi' | cut -d' ' -f1)"
+  validate_partition_without_extension "${part_name}"
+  printf "%s" "/dev/${part_name}"
+}
+
 print_swap_partition_number() {
   path_to_whole_disk="${1}"
 
@@ -1401,6 +1421,16 @@ print_swap_partition_number() {
   part_number="$(gpart show "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='[0-9] freebsd-swap' | cut -d' ' -f1)"
   validate_string_is_unsigned_integer "${part_number}"
   printf "%s" "${part_number}"
+}
+
+print_path_to_swap_partition() {
+  path_to_whole_disk="${1}"
+
+  # Note: part name should be e.g. "ada1p3"
+  # Note: find the partition type with the swap code
+  part_name="$(gpart show -p "${path_to_whole_disk}" | tr -s ' ' | grep --only-matching --regexp='\w* freebsd-swap' | cut -d' ' -f1)"
+  validate_partition_without_extension "${part_name}"
+  printf "%s" "/dev/${part_name}"
 }
 
 print_zfs_partition_number() {
@@ -1618,6 +1648,11 @@ create_single_zfs_partition() {
   try_silent_print_with_exit \
     "gpart add -t freebsd-zfs -l ${gpt_part_label} ${new_whole_disk_path}" \
     "creating single ZFS partition on ${new_whole_disk_path}" 20
+
+  zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${new_whole_disk_path}")"
+  try_total_silent_with_exit \
+    "zpool labelclear -f ${zfs_part_path}" \
+    "removing ZFS label info from new disk partition ${zfs_part_path}" 20
 }
 
 label_existing_zfs_partition() {
@@ -1655,8 +1690,12 @@ configure_legacy_bios_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   whole_disk_path="${1}"
 
-  partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
+  bios_part_path="$(print_path_to_legacy_bios_partition "${whole_disk_path}")"
+  try_total_silent_with_exit \
+    "zpool labelclear -f ${bios_part_path}" \
+    "removing ZFS label info from new disk partition ${bios_part_path}" 20
 
+  partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
   gpt_part_label="$(print_gpt_legacy_bios_part_label "${whole_disk_path}")"
   try_silent_print_with_exit \
     "gpart modify -i ${partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
@@ -1718,7 +1757,11 @@ configure_uefi_partition() {
 
   uefi_part_number="$(print_uefi_partition_number "${whole_disk_path}")"
   gpt_uefi_part_label="$(print_gpt_uefi_part_label "${whole_disk_path}")"
-  uefi_partition_path="${whole_disk_path}p${uefi_part_number}"
+  uefi_partition_path="$(print_path_to_uefi_partition "${whole_disk_path}")"
+
+  try_total_silent_with_exit \
+    "zpool labelclear -f ${uefi_partition_path}" \
+    "removing ZFS label info from new disk partition ${uefi_partition_path}" 20
 
   try_silent_print_with_exit \
     "gpart modify -i ${uefi_part_number} -l ${gpt_uefi_part_label} ${whole_disk_path}" \
@@ -1779,10 +1822,15 @@ configure_boot_partitions_on_new_root_mirror_disk() {
 }
 
 configure_swap_partition_on_new_root_mirror_disk() {
-  new_whole_disk_path="${1}"
+  whole_disk_path="${1}"
 
   swap_part_number="$(print_swap_partition_number "${whole_disk_path}")"
   gpt_swap_part_label="$(print_gpt_swap_part_label "${whole_disk_path}")"
+  swap_partition_path="$(print_path_to_swap_partition "${whole_disk_path}")"
+
+  try_total_silent_with_exit \
+    "zpool labelclear -f ${swap_partition_path}" \
+    "removing ZFS label info from new disk partition ${swap_partition_path}" 20
 
   try_silent_print_with_exit \
     "gpart modify -i ${swap_part_number} -l ${gpt_swap_part_label} ${whole_disk_path}" \
