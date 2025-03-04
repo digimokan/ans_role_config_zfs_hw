@@ -1660,6 +1660,12 @@ label_existing_zfs_partition() {
 
   zfs_partition_number="$(print_zfs_partition_number "${whole_disk_path}")"
   gpt_part_label="$(print_gpt_zfs_part_label "${whole_disk_path}")"
+  zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${whole_disk_path}")"
+
+  try_total_silent_with_exit \
+    "zpool labelclear -f ${zfs_part_path}" \
+    "removing ZFS label info from new disk partition ${zfs_part_path}" 20
+
   try_silent_print_with_exit \
     "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
     "labeling ZFS partition on ${whole_disk_path}" 20
