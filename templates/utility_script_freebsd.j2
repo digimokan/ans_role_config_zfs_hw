@@ -1775,29 +1775,9 @@ configure_uefi_partition() {
     "gpart modify -i ${new_uefi_part_number} -l ${new_gpt_uefi_part_label} ${new_whole_disk_path}" \
     "labeling UEFI partition ${new_uefi_part_number} on ${new_whole_disk_path}" 20
 
-  # try_silent_print_with_exit \
-  #   "newfs_msdos -F 32 -c ${new_uefi_part_number} -L EFISYS ${new_uefi_partition_path}" \
-  #   "formatting partition ${new_uefi_part_number} on new disk with FAT32" 20
-
-  # temp_efi_mount="$(mktemp -d /tmp/efi_install.XXXXXX)"
-
-  # try_silent_print_with_exit \
-  #   "mkdir -p \"${temp_efi_mount}\"" \
-  #   "creating temp mountpoint \"${temp_efi_mount}\" for EFI partition" 20
-
   try_silent_print_with_exit \
     "mount -t msdosfs \"${new_uefi_partition_path}\" \"${system_boot_efi_mount_path}\"" \
     "mounting EFI partition ${new_uefi_partition_path} at system boot path \"${system_boot_efi_mount_path}\"" 20
-
-  # boot_loader_rel_dir="EFI/freebsd"
-  # try_silent_print_with_exit \
-  #   "mkdir -p \"${temp_efi_mount}/${boot_loader_rel_dir}\"" \
-  #   "creating dir \"${temp_efi_mount}/${boot_loader_rel_dir}\" for EFI loader" 20
-
-  # target_boot_loader_exec_path="${temp_efi_mount}/${boot_loader_rel_dir}/loader.efi"
-  # try_silent_print_with_exit \
-  #   "cp \"/boot/loader.efi\" \"${target_boot_loader_exec_path}\"" \
-  #   "copying existing EFI loader executable to \"${target_boot_loader_exec_path}\"" 20
 
   target_boot_loader_exec_path="${system_boot_efi_mount_path}/efi/freebsd/loader.efi"
   try_silent_print_with_exit \
@@ -1805,11 +1785,6 @@ configure_uefi_partition() {
     "confirming system EFI loader executable exists at \"${target_boot_loader_exec_path}\"" 20
 
   configure_efi_bootmgr "${new_whole_disk_path}" "${target_boot_loader_exec_path}"
-
-  # try_silent_print_with_exit \
-  #   "umount \"${temp_efi_mount}\"" \
-  #   "unmounting EFI partition from temp mountpoint \"${temp_efi_mount}\"" 20
-
   configure_uefi_etc_fstab_entry "${new_whole_disk_path}"
 }
 
