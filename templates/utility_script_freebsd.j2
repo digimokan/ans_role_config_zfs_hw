@@ -1815,6 +1815,8 @@ configure_uefi_partition() {
 
 configure_boot_partitions_on_new_root_mirror_disk() {
   whole_disk_path="${1}"
+  # Note: may be disk partition, or GPT label pointing to disk partition
+  existing_zfs_part_device_path="${2}"
 
   # Partitions Created With FreeBSD 14.2 on BIOS Hardware:
   #   1. One BIOS part (part type "freebsd-boot")
@@ -1830,7 +1832,7 @@ configure_boot_partitions_on_new_root_mirror_disk() {
 
   bios_type="$(sysctl -n machdep.bootmethod)"
   if [ "${bios_type}" = 'UEFI' ]; then
-    configure_uefi_partition "${whole_disk_path}"
+    configure_uefi_partition "${whole_disk_path}" "${existing_zfs_part_device_path}"
   fi
 }
 
