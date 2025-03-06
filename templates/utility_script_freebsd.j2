@@ -1676,20 +1676,7 @@ format_partitions_on_new_root_mirror_disk() {
   # Note: may be disk partition, or GPT label pointing to disk partition
   existing_zfs_part_device_path="${2}"
 
-  # try_silent_print_with_exit \
-  #   "gpart create -s gpt ${new_whole_disk_path}" \
-  #   "creating partition table on ${new_whole_disk_path}" 20
-
   existing_whole_disk_path="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
-  # part_table_path="/tmp/existing_part_table.txt"
-
-  # try_silent_print_with_exit \
-  #   "gpart backup ${existing_whole_disk_path} > ${part_table_path}" \
-  #   "copying existing disk's partition-table-format to ${part_table_path}" 20
-
-  # try_silent_print_with_exit \
-  #   "gpart restore -F ${new_whole_disk_path} < ${part_table_path}" \
-  #   "writing partition table to new disk" 20
 
   try_silent_print_with_exit \
     "gpart backup ${existing_whole_disk_path} | gpart restore -F ${new_whole_disk_path}" \
