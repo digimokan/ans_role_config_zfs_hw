@@ -1603,13 +1603,13 @@ detach_disk_geli_device_as_required() {
 disable_all_system_swap_devices() {
   active_swap_devices="$(swapctl -l | tail -n +2 | cut -d' ' -f1)"
 
-  if [ "${active_swap_devices}" != '' ]; then
-    printf "%s\n" "${active_swap_devices}" | while IFS="$(printf "\n.")" read -r swap_device; do
+  printf "%s\n" "${active_swap_devices}" | while IFS="$(printf "\n.")" read -r swap_device; do
+    if [ "${swap_device}" != '' ]; then
       try_silent_print_with_exit \
         "swapoff \"${swap_device}\"" \
         "disabling swap device \"${swap_device}\"" 20
-    done
-  fi
+    fi
+  done
 }
 
 wipe_new_disk_as_required() {
@@ -1733,11 +1733,11 @@ configure_uefi_etc_fstab_entry() {
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/efiboot/d' /etc/fstab" \
-    "Removing any efi partition /etc/fstab entries added by FreeBSD installer" 20
+    "removing any efi partition /etc/fstab entries added by FreeBSD installer" 20
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/${disk0_uefi_part_basename}/d' /etc/fstab" \
-    "Removing any existing /etc/fstab swap entry for /dev/${disk0_uefi_part_basename}" 20
+    "removing any existing /etc/fstab efi partition entry for /dev/${disk0_uefi_part_basename}" 20
 
   try_silent_print_with_exit \
     "echo '/dev/${disk0_uefi_part_basename} /boot/efi msdosfs rw 2 2' >> /etc/fstab" \
@@ -1828,15 +1828,15 @@ configure_swap_partition_on_new_root_mirror_disk() {
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/ad.*swap/d' /etc/fstab" \
-    "Removing any /etc/fstab swap entries that use raw ad[n] disk paths" 20
+    "removing any /etc/fstab swap entries that use raw ad[n] disk paths" 20
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/nd.*swap/d' /etc/fstab" \
-    "Removing any /etc/fstab swap entries that use raw nd[n] disk paths" 20
+    "removing any /etc/fstab swap entries that use raw nd[n] disk paths" 20
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/${gpt_swap_part_label}/d' /etc/fstab" \
-    "Removing any existing /etc/fstab swap entry for /dev/gpt/${gpt_swap_part_label}" 20
+    "removing any existing /etc/fstab swap entry for /dev/gpt/${gpt_swap_part_label}" 20
 
   try_silent_print_with_exit \
     "echo '/dev/gpt/${gpt_swap_part_label} none swap sw 0 0' >> /etc/fstab" \
