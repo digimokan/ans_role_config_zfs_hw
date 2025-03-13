@@ -1685,28 +1685,27 @@ format_partitions_on_new_root_mirror_disk() {
 
 configure_legacy_bios_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
-  whole_disk_path="${1}"
+  new_whole_disk_path="${1}"
   # Note: may be disk partition, or GPT label pointing to disk partition
   existing_zfs_part_device_path="${2}"
 
-  bios_part_path="$(print_path_to_legacy_bios_partition "${whole_disk_path}")"
-  bios_partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
   new_bios_partition_path="$(print_path_to_legacy_bios_partition "${new_whole_disk_path}")"
   existing_whole_disk_path="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
   existing_bios_partition_path="$(print_path_to_legacy_bios_partition "${existing_whole_disk_path}")"
-  gpt_part_label="$(print_gpt_legacy_bios_part_label "${whole_disk_path}")"
+  new_gpt_part_label="$(print_gpt_legacy_bios_part_label "${new_whole_disk_path}")"
+  bios_partition_number="$(print_legacy_bios_partition_number "${new_whole_disk_path}")"
 
   try_total_silent_with_exit \
-    "zpool labelclear -f ${bios_part_path}" \
-    "removing ZFS label info from new disk legacy BIOS disk partition ${bios_part_path}" 20
+    "zpool labelclear -f ${new_bios_partition_path}" \
+    "removing ZFS label info from new disk legacy BIOS disk partition ${new_bios_partition_path}" 20
 
   try_silent_print_with_exit \
     "dd if=${existing_bios_partition_path} of=${new_bios_partition_path} bs=4k" \
     "copying legacy BIOS partition from ${existing_bios_partition_path} to ${new_bios_partition_path}" 20
 
   try_silent_print_with_exit \
-    "gpart modify -i ${bios_partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
-    "labeling new disk legacy BIOS partition ${bios_partition_number} on ${whole_disk_path}" 20
+    "gpart modify -i ${bios_partition_number} -l ${new_gpt_part_label} ${new_whole_disk_path}" \
+    "labeling new disk legacy BIOS partition ${bios_partition_number} on ${new_whole_disk_path}" 20
 }
 
 configure_efi_bootmgr() {
