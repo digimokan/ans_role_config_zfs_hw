@@ -1802,13 +1802,13 @@ configure_boot_partitions_on_new_root_mirror_disk() {
   #   https://forums.freebsd.org/threads/update-of-the-bootcodes-for-a-gpt-scheme-x64-architecture.80163/#post-509122
   #   https://forums.freebsd.org/threads/cant-boot-on-uefi.68141/#post-406138
 
-  # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
-  configure_legacy_bios_partition "${whole_disk_path}"
-
   bios_type="$(sysctl -n machdep.bootmethod)"
   if [ "${bios_type}" = 'UEFI' ]; then
     configure_uefi_partition "${whole_disk_path}" "${existing_zfs_part_device_path}"
   fi
+
+  # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
+  configure_legacy_bios_partition "${whole_disk_path}"
 }
 
 configure_swap_partition_on_new_root_mirror_disk() {
