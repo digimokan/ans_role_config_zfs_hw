@@ -1686,21 +1686,27 @@ format_partitions_on_new_root_mirror_disk() {
 configure_legacy_bios_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   whole_disk_path="${1}"
+  # Note: may be disk partition, or GPT label pointing to disk partition
+  existing_zfs_part_device_path="${2}"
 
   bios_part_path="$(print_path_to_legacy_bios_partition "${whole_disk_path}")"
+  bios_partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
+  new_bios_partition_path="$(print_path_to_legacy_bios_partition "${new_whole_disk_path}")"
+  existing_whole_disk_path="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
+  existing_bios_partition_path="$(print_path_to_legacy_bios_partition "${existing_whole_disk_path}")"
+  gpt_part_label="$(print_gpt_legacy_bios_part_label "${whole_disk_path}")"
+
   try_total_silent_with_exit \
     "zpool labelclear -f ${bios_part_path}" \
-    "removing ZFS label info from new disk partition ${bios_part_path}" 20
-
-  partition_number="$(print_legacy_bios_partition_number "${whole_disk_path}")"
-  gpt_part_label="$(print_gpt_legacy_bios_part_label "${whole_disk_path}")"
-  try_silent_print_with_exit \
-    "gpart modify -i ${partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
-    "labeling legacy BIOS partition ${partition_number} on ${whole_disk_path}" 20
+    "removing ZFS label info from new disk legacy BIOS disk partition ${bios_part_path}" 20
 
   try_silent_print_with_exit \
-    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${partition_number} ${whole_disk_path}" \
-    "setting legacy BIOS bootcode on new disk partition ${partition_number}" 20
+    "dd if=${existing_bios_partition_path} of=${new_bios_partition_path} bs=4k" \
+    "copying legacy BIOS partition from ${existing_bios_partition_path} to ${new_bios_partition_path}" 20
+
+  try_silent_print_with_exit \
+    "gpart modify -i ${bios_partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
+    "labeling new disk legacy BIOS partition ${bios_partition_number} on ${whole_disk_path}" 20
 }
 
 configure_efi_bootmgr() {
@@ -1715,12 +1721,12 @@ configure_efi_bootmgr() {
   if [ "${existing_efi_var_num}" != '' ]; then
     try_silent_print_with_exit \
       "efibootmgr --delete -b ${existing_efi_var_num}" \
-      "deleting existing EFI var for EFI label ${efibootmgr_label}" 20
+      "deleting existing EFI var for new disk EFI label ${efibootmgr_label}" 20
   fi
 
   try_silent_print_with_exit \
     "efibootmgr --create --activate --loader \"${efi_loader_exec}\" --label \"${efibootmgr_label}\"" \
-    "registering EFI loader \"${efi_loader_exec}\" with efibootmgr" 20
+    "registering new disk EFI loader \"${efi_loader_exec}\" with efibootmgr" 20
 }
 
 configure_uefi_etc_fstab_entry() {
@@ -1765,7 +1771,7 @@ configure_uefi_partition() {
 
   try_total_silent_with_exit \
     "zpool labelclear -f ${new_uefi_partition_path}" \
-    "removing ZFS label info from new disk partition ${new_uefi_partition_path}" 20
+    "removing ZFS label info from new disk EFI partition ${new_uefi_partition_path}" 20
 
   try_silent_print_with_exit \
     "dd if=${existing_uefi_partition_path} of=${new_uefi_partition_path} bs=4k" \
@@ -1773,11 +1779,11 @@ configure_uefi_partition() {
 
   try_silent_print_with_exit \
     "gpart modify -i ${new_uefi_part_number} -l ${new_gpt_uefi_part_label} ${new_whole_disk_path}" \
-    "labeling UEFI partition ${new_uefi_part_number} on ${new_whole_disk_path}" 20
+    "labeling new disk EFI partition ${new_uefi_part_number} on ${new_whole_disk_path}" 20
 
   try_silent_print_with_exit \
     "mount -t msdosfs \"${new_uefi_partition_path}\" \"${system_boot_efi_mount_path}\"" \
-    "mounting EFI partition ${new_uefi_partition_path} at system boot path \"${system_boot_efi_mount_path}\"" 20
+    "mounting new disk EFI partition ${new_uefi_partition_path} at system boot path \"${system_boot_efi_mount_path}\"" 20
 
   target_boot_loader_exec_path="${system_boot_efi_mount_path}/efi/freebsd/loader.efi"
   try_silent_print_with_exit \
@@ -1808,7 +1814,7 @@ configure_boot_partitions_on_new_root_mirror_disk() {
   fi
 
   # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
-  configure_legacy_bios_partition "${whole_disk_path}"
+  configure_legacy_bios_partition "${whole_disk_path}" "${existing_zfs_part_device_path}"
 }
 
 configure_swap_partition_on_new_root_mirror_disk() {
@@ -1824,7 +1830,7 @@ configure_swap_partition_on_new_root_mirror_disk() {
 
   try_silent_print_with_exit \
     "gpart modify -i ${swap_part_number} -l ${gpt_swap_part_label} ${whole_disk_path}" \
-    "labeling swap partition ${swap_part_number} on ${whole_disk_path}" 20
+    "labeling new disk swap partition ${swap_part_number} on ${whole_disk_path}" 20
 
   try_silent_print_with_exit \
     "sed -i '' '/\/dev\/ad.*swap/d' /etc/fstab" \
@@ -1840,7 +1846,7 @@ configure_swap_partition_on_new_root_mirror_disk() {
 
   try_silent_print_with_exit \
     "echo '/dev/gpt/${gpt_swap_part_label} none swap sw 0 0' >> /etc/fstab" \
-    "Adding ${gpt_swap_part_label} swap entry to /etc/fstab" 20
+    "Adding new disk ${gpt_swap_part_label} swap entry to /etc/fstab" 20
 
   try_silent_print_with_exit \
     "swapon -a" \
