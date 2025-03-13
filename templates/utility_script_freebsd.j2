@@ -1768,7 +1768,7 @@ configure_uefi_partition() {
     "removing ZFS label info from new disk partition ${new_uefi_partition_path}" 20
 
   try_silent_print_with_exit \
-    "dd if=${existing_uefi_partition_path} of=${new_uefi_partition_path} bs=1m" \
+    "dd if=${existing_uefi_partition_path} of=${new_uefi_partition_path} bs=4k" \
     "copying UEFI partition from ${existing_uefi_partition_path} to ${new_uefi_partition_path}" 20
 
   try_silent_print_with_exit \
