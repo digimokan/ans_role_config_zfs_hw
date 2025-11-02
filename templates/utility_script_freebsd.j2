@@ -1945,7 +1945,7 @@ exec_attach_new_disk_to_boot_mirror() {
 
   wipe_new_disk_as_required "${new_disk_path}"
   format_partitions_on_new_root_mirror_disk "${new_disk_path}" "${gpt_label_path}"
-  configure_boot_partitions_on_new_root_mirror_disk "${new_disk_path}" "${zfs_device_path}"
+  configure_boot_partitions_on_new_root_mirror_disk "${new_disk_path}" "${gpt_label_path}"
   configure_swap_partition_on_new_root_mirror_disk "${new_disk_path}"
   label_existing_zfs_partition "${new_disk_path}"
   gpt_part_label_path="$(print_gpt_zfs_part_label_path "${new_disk_path}")"
