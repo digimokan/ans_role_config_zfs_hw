@@ -1146,7 +1146,7 @@ validate_partition_without_extension() {
   part_name="$(print_filename_without_extension "${partition}")"
 
   try_silent_with_exit \
-    "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep ${part_name} 1> /dev/null 2>&1" \
+    "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep -w ${part_name} 1> /dev/null 2>&1" \
     "\"${part_name}\" must be a valid partition" 255
 }
 
@@ -1155,7 +1155,7 @@ validate_active_device_in_vdev() {
   pool="${2}"
 
   try_silent_with_exit \
-    "zpool list -v -P ${pool} | grep --regexp=\"\s${device}\s\" 1> /dev/null" \
+    "zpool list -v -P ${pool} | grep -w \"${device}\" 1> /dev/null" \
     "\"${device}\" must be an active zfs device in a vdev in pool \"${pool}\"" 255
 }
 
@@ -1163,7 +1163,7 @@ validate_not_active_device_in_vdev() {
   device="${1}"
 
   try_silent_with_exit \
-    "! zpool list -v -P | grep \"${device}\" 1> /dev/null" \
+    "! zpool list -v -P | grep -w \"${device}\" 1> /dev/null" \
     "\"${device}\" must not be an active zfs device in a vdev" 255
 }
 
@@ -1172,10 +1172,11 @@ validate_not_active_non_cache_device_in_vdev() {
   pool="${2}"
 
   try_silent_with_exit \
-    "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep \"${device_path}\" 1> /dev/null 2>&1" \
+    "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep -w \"${device_path}\" 1> /dev/null 2>&1" \
     "disk \"${device_path}\" is a normal zfs device in pool \"${pool}\" - not a read/write cache disk" 255
 }
 
+# shellcheck disable=SC2317
 validate_item_is_full_disk() {
   item="${1}"
 
@@ -1221,6 +1222,7 @@ validate_zfs_geli_ecrypted_partition() {
     "${err_msg}" 255
 }
 
+# shellcheck disable=SC2317
 validate_zfs_or_zfs_geli_partition() {
   path_to_part="${1}"
   err_msg="${2}"
@@ -1228,7 +1230,7 @@ validate_zfs_or_zfs_geli_partition() {
   part_name="$(print_filename_without_extension "${path_to_part}")"
 
   try_silent_with_exit \
-    "gpart show -p | grep ${part_name} | grep zfs 1> /dev/null 2>&1" \
+    "gpart show -p | grep -w ${part_name} | grep zfs 1> /dev/null 2>&1" \
     "${err_msg}" 255
 }
 
@@ -1256,7 +1258,7 @@ validate_zfs_vdev() {
   pool="${2}"
 
   try_silent_with_exit \
-    "zpool get -H -o value parent ${pool} ${vdev_name} 2> /dev/null | grep ${pool} 1> /dev/null 2>&1" \
+    "zpool get -H -o value parent ${pool} ${vdev_name} 2> /dev/null | grep -w ${pool} 1> /dev/null 2>&1" \
     "\"${vdev_name}\" is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
 }
 
@@ -1265,7 +1267,7 @@ validate_pool_has_read_cache_disk() {
 
   read_cache_vdev_name="cache"
   try_silent_with_exit \
-    "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep ${read_cache_vdev_name} 1> /dev/null 2>&1" \
+    "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep -w ${read_cache_vdev_name} 1> /dev/null 2>&1" \
     "read cache does not exist in pool \"${pool}\" (did you specify the correct pool?)" 255
 }
 
@@ -1274,7 +1276,7 @@ validate_pool_has_write_cache_disk() {
 
   write_cache_vdev_name="log"
   try_silent_with_exit \
-    "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep ${write_cache_vdev_name} 1> /dev/null 2>&1" \
+    "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep -w ${write_cache_vdev_name} 1> /dev/null 2>&1" \
     "write cache does not exist in pool \"${pool}\" (did you specify the correct pool?)" 255
 }
 
@@ -1452,6 +1454,7 @@ print_path_to_zfs_partition_without_eli_ext() {
   printf "%s" "/dev/${part_name}"
 }
 
+# shellcheck disable=SC2317
 print_path_to_zfs_geli_ecrypted_partition() {
   whole_disk_path="${1}"
 
@@ -1468,7 +1471,7 @@ print_part_path_from_label() {
   gpt_label_path="${1}"
 
   gpt_label_name="$(print_filename_without_extension "${gpt_label_path}")"
-  part_name="$(gpart show -lp | grep "${gpt_label_name}" | awk '{ print $3 }')"
+  part_name="$(gpart show -lp | grep -w "${gpt_label_name}" | awk '{ print $3 }')"
   validate_partition_without_extension "${part_name}"
   printf "%s" "/dev/${part_name}"
 }
@@ -1492,7 +1495,7 @@ print_whole_disk_path() {
   fi
 
   part_name_without_ext="$(print_filename_without_extension "${actual_part}")"
-  whole_disk_name="$(geom part status -s | grep "${part_name_without_ext}" | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f3)"
+  whole_disk_name="$(geom part status -s | grep -w "${part_name_without_ext}" | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f3)"
   whole_disk_path="/dev/${whole_disk_name}"
   validate_whole_disk_name_or_path "${whole_disk_path}"
   printf "%s" "${whole_disk_path}"
@@ -1591,7 +1594,7 @@ detach_disk_geli_device_as_required() {
   disk_path="${1}"
 
   disk_name="$(print_whole_disk_name "${disk_path}")"
-  geli_device_name="$(geli status 2> /dev/null | grep "${disk_name}" | tr -s ' ' | awk '{ print $1 }')"
+  geli_device_name="$(geli status 2> /dev/null | grep -w "${disk_name}" | tr -s ' ' | awk '{ print $1 }')"
 
   if [ "${geli_device_name}" != '' ]; then
     try_silent_print_with_exit \
