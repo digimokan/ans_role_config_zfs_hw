@@ -1492,7 +1492,7 @@ print_whole_disk_path() {
   fi
 
   part_name_without_ext="$(print_filename_without_extension "${actual_part}")"
-  whole_disk_name="$(geom part status -s | grep "${part_name_without_ext}" | tr -s ' ' | cut -d' ' -f3)"
+  whole_disk_name="$(geom part status -s | grep "${part_name_without_ext}" | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f3)"
   whole_disk_path="/dev/${whole_disk_name}"
   validate_whole_disk_name_or_path "${whole_disk_path}"
   printf "%s" "${whole_disk_path}"
