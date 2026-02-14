@@ -1843,6 +1843,10 @@ configure_swap_partition_on_new_root_mirror_disk() {
     "removing any /etc/fstab swap entries that use raw nd[n] disk paths" 20
 
   try_silent_print_with_exit \
+    "sed -i '' '/\/dev\/da.*swap/d' /etc/fstab" \
+    "removing any /etc/fstab swap entries that use raw da[n] disk paths" 20
+
+  try_silent_print_with_exit \
     "sed -i '' '/\/dev\/gpt\/${gpt_swap_part_label}/d' /etc/fstab" \
     "removing any existing /etc/fstab swap entry for /dev/gpt/${gpt_swap_part_label}" 20
 
