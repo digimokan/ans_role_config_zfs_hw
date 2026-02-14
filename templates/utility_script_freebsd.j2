@@ -1146,7 +1146,7 @@ validate_partition_without_extension() {
   part_name="$(print_filename_without_extension "${partition}")"
 
   try_silent_with_exit \
-    "geom part status -s | tr -s ' ' | cut -d' ' -f1 | grep ${part_name} 1> /dev/null 2>&1" \
+    "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep ${part_name} 1> /dev/null 2>&1" \
     "\"${part_name}\" must be a valid partition" 255
 }
 
