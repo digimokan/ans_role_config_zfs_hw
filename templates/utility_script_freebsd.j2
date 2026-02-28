@@ -364,8 +364,8 @@ try_total_silent_with_exit() {
   cmd="${1}"
   op_descrip="${2}"
 
-  printf "Now %s with \"%s\"...\n" "${op_descrip}" "${cmd}"
-  eval "${cmd}" 1> /dev/null 2>&1
+  ${cmd} 1> /dev/null 2>&1
+  quit_if_rc_not_zero "${?}" "error ${op_descrip}" 5
 }
 
 handle_unknown_option() {
