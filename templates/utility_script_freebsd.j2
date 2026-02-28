@@ -1534,7 +1534,8 @@ print_base_gpt_partition_label() {
 
   whole_disk_name="$(print_whole_disk_name "${disk_path}")"
   short_disk_type="$(printf "%s" "${whole_disk_name}" | cut -c -2)"
-  serno="$(diskinfo -s "${disk_path}" | tail -c 6)"
+  serno="$(${SMARTCTL_CMD} --info "${disk_path}" | grep --ignore-case "serial number" | awk '{ print $NF }' | tail -c 6)"
+
   printf "%s" "${short_disk_type}${serno}"
 }
 
