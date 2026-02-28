@@ -1285,7 +1285,7 @@ validate_pool_has_write_cache_disk() {
 check_smartmontools_is_installed() {
   try_silent_with_exit \
     "${SMARTCTL_CMD} --version" \
-    "\"${SMARTCTL_CMD}\" (from smartmontools package) should be installed on the system" 255
+    "smartmontools package should be installed on the system" 255
 }
 
 check_running_as_root() {
