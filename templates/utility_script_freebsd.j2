@@ -368,6 +368,14 @@ try_total_silent_with_exit() {
   quit_if_rc_not_zero "${?}" "error ${op_descrip}" 5
 }
 
+do_silent_print_and_ignore_err() {
+  cmd="${1}"
+  op_descrip="${2}"
+
+  printf "Now %s with \"%s\"...\n" "${op_descrip}" "${cmd}"
+  ${cmd} 1> /dev/null 2>&1
+}
+
 handle_unknown_option() {
   short_opt_letter_or_long_opt_name="${1}"
   err_msg="unknown option \"${short_opt_letter_or_long_opt_name}\""
@@ -1631,9 +1639,9 @@ wipe_new_disk_as_required() {
   disable_all_system_swap_devices
 
   # Note: attempting to destroy, with no partition table, causes error return
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "gpart destroy -F ${whole_disk_path}" \
-    "wiping new disk ${whole_disk_path} partition table" 20
+    "wiping new disk ${whole_disk_path} partition table"
 
   try_total_silent_with_exit \
     "zpool labelclear -f ${whole_disk_path}" \
