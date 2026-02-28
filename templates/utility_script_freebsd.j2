@@ -1638,14 +1638,13 @@ wipe_new_disk_as_required() {
   detach_disk_geli_device_as_required "${whole_disk_path}"
   disable_all_system_swap_devices
 
-  # Note: attempting to destroy, with no partition table, causes error return
   do_silent_print_and_ignore_err \
     "gpart destroy -F ${whole_disk_path}" \
     "wiping new disk ${whole_disk_path} partition table"
 
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${whole_disk_path}" \
-    "removing ZFS label info from new disk ${whole_disk_path}" 20
+    "removing ZFS label info from new disk ${whole_disk_path}"
 
   try_silent_print_with_errmsg_exit \
     "gpart create -s gpt ${whole_disk_path}" \
@@ -1670,9 +1669,9 @@ create_single_zfs_partition() {
     "creating single ZFS partition on ${whole_disk_path}" 20
 
   zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${whole_disk_path}")"
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${zfs_part_path}" \
-    "removing ZFS label info from new disk partition ${zfs_part_path}" 20
+    "removing ZFS label info from new disk partition ${zfs_part_path}"
 }
 
 label_existing_zfs_partition() {
@@ -1682,9 +1681,9 @@ label_existing_zfs_partition() {
   gpt_part_label="$(print_gpt_zfs_part_label "${whole_disk_path}")"
   zfs_part_path="$(print_path_to_zfs_partition_without_eli_ext "${whole_disk_path}")"
 
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${zfs_part_path}" \
-    "removing ZFS label info from new disk partition ${zfs_part_path}" 20
+    "removing ZFS label info from new disk partition ${zfs_part_path}"
 
   try_silent_print_with_exit \
     "gpart modify -i ${zfs_partition_number} -l ${gpt_part_label} ${whole_disk_path}" \
@@ -1715,9 +1714,9 @@ configure_legacy_bios_partition() {
   new_gpt_part_label="$(print_gpt_legacy_bios_part_label "${new_whole_disk_path}")"
   bios_partition_number="$(print_legacy_bios_partition_number "${new_whole_disk_path}")"
 
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${new_bios_partition_path}" \
-    "removing ZFS label info from new disk legacy BIOS disk partition ${new_bios_partition_path}" 20
+    "removing ZFS label info from new disk legacy BIOS disk partition ${new_bios_partition_path}"
 
   try_silent_print_with_exit \
     "dd if=${existing_bios_partition_path} of=${new_bios_partition_path} bs=4k" \
@@ -1788,9 +1787,9 @@ configure_uefi_partition() {
     "umount \"${system_boot_efi_mount_path}\"" \
     "unmounting system EFI partition from \"${system_boot_efi_mount_path}\"" 20
 
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${new_uefi_partition_path}" \
-    "removing ZFS label info from new disk EFI partition ${new_uefi_partition_path}" 20
+    "removing ZFS label info from new disk EFI partition ${new_uefi_partition_path}"
 
   try_silent_print_with_exit \
     "dd if=${existing_uefi_partition_path} of=${new_uefi_partition_path} bs=4k" \
@@ -1843,9 +1842,9 @@ configure_swap_partition_on_new_root_mirror_disk() {
   gpt_swap_part_label="$(print_gpt_swap_part_label "${whole_disk_path}")"
   swap_partition_path="$(print_path_to_swap_partition "${whole_disk_path}")"
 
-  try_total_silent_with_exit \
+  do_silent_print_and_ignore_err \
     "zpool labelclear -f ${swap_partition_path}" \
-    "removing ZFS label info from new disk partition ${swap_partition_path}" 20
+    "removing ZFS label info from new disk partition ${swap_partition_path}"
 
   try_silent_print_with_exit \
     "gpart modify -i ${swap_part_number} -l ${gpt_swap_part_label} ${whole_disk_path}" \
