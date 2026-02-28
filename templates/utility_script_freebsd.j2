@@ -1155,9 +1155,17 @@ validate_partition_without_extension() {
 
   part_name="$(print_filename_without_extension "${partition}")"
 
-  try_silent_with_exit \
-    "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep -w ${part_name} 1> /dev/null 2>&1" \
-    "\"${part_name}\" should be a valid partition" 255
+  if [ "$(uname)" = "FreeBSD" ]; then
+    try_silent_with_exit \
+      "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep -w ${part_name} 1> /dev/null 2>&1" \
+      "\"${part_name}\" should be a valid partition" 255
+  elif [ "$(uname)" = "Linux" ]; then
+    try_silent_with_exit \
+      "lsblk --noheadings --nodeps --output TYPE ${part_name} | grep -w \"part\"" \
+      "\"${part_name}\" should be a valid partition" 255
+  else
+    quit_with_err_msg "validate_partition_without_extension: unsupported OS" 255
+  fi
 }
 
 validate_active_device_in_vdev() {
@@ -1511,7 +1519,14 @@ print_whole_disk_path() {
   fi
 
   part_name_without_ext="$(print_filename_without_extension "${actual_part}")"
-  whole_disk_name="$(geom part status -s | grep -w "${part_name_without_ext}" | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f3)"
+  if [ "$(uname)" = "FreeBSD" ]; then
+    whole_disk_name="$(geom part status -s | grep -w "${part_name_without_ext}" | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f3)"
+  elif [ "$(uname)" = "Linux" ]; then
+    whole_disk_name="$(lsblk --noheadings --output PKNAME "${part_name_without_ext}")"
+  else
+    quit_with_err_msg "print_whole_disk_path: unsupported OS" 255
+  fi
+
   whole_disk_path="/dev/${whole_disk_name}"
   validate_whole_disk_name_or_path "${whole_disk_path}"
   printf "%s" "${whole_disk_path}"
