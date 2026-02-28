@@ -1283,7 +1283,7 @@ validate_pool_has_write_cache_disk() {
 }
 
 check_smartmontools_is_installed() {
-  try_silent_with_exit \
+  try_total_silent_with_exit \
     "${SMARTCTL_CMD} --version" \
     "smartmontools package should be installed on the system" 255
 }
