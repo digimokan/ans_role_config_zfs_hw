@@ -59,17 +59,23 @@ Install and configure ZFS hardware: disks, pools, vdevs, and devices.
        - name: "Install and configure ZFS hardware: disks, pools, vdevs, and devices"
          ansible.builtin.include_role:
            name: ans_role_config_zfs_hw
+         vars:
+           cfg_zfs_hw_smartctl_cmd: "smartctl"
    ```
 
 ## Role Options
 
+Vars that must be defined when including the role in the playbook:
+
+  * [dependencies](../defaults/main/dependencies/main.yml)
+
 Vars with default values, which can be overridden in the playbook:
 
-  * [overridable](../defaults/main/overridable)
+  * [overridable](../defaults/main/overridable/main.yml)
 
 Vars defined by this role, exported with `public: true`, for use in other roles:
 
-  * [export](../defaults/main/export/commands.yml)
+  * [export](../defaults/main/export/main.yml)
 
 ## Contributing
 

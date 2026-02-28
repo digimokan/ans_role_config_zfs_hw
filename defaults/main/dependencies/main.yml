@@ -1,0 +1,3 @@
+# this role depends on the "smartctl" cmd, from the smartmontools package
+cfg_zfs_hw_smartctl_cmd: "false"
+

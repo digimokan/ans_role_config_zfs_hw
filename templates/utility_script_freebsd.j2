@@ -21,6 +21,8 @@ DEFAULT_PERM_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_permanent_base_mount_dir }}
 readonly DEFAULT_PERM_MOUNT_POINT_BASE
 DEFAULT_TEMP_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_temp_base_mount_dir }}'
 readonly DEFAULT_TEMP_MOUNT_POINT_BASE
+SMARTCTL_CMD='{{ cfg_zfs_hw_smartctl_cmd }}'
+readonly SMARTCTL_CMD
 
 # Mutable User Normal Cmd Option Selections
 PRINT_HELP_MENU='false'
@@ -1280,6 +1282,12 @@ validate_pool_has_write_cache_disk() {
     "write cache should exist in pool \"${pool}\" (did you specify the correct pool?)" 255
 }
 
+check_smartmontools_is_installed() {
+  try_silent_with_exit \
+    "${SMARTCTL_CMD} --version" \
+    "\"${SMARTCTL_CMD}\" (from smartmontools package) should be installed on the system" 255
+}
+
 check_running_as_root() {
   if [ "$(id -un)" != 'root' ]; then
     quit_with_err_msg "must run this script as root for this operation" 255
@@ -2312,6 +2320,8 @@ do_destroy_pool() {
 
 main() {
   get_cmd_opts "$@"
+
+  check_smartmontools_is_installed
 
   if [ "${PRINT_HELP_MENU}" = 'true' ]; then
     do_print_help_menu
