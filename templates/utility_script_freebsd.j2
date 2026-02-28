@@ -1125,7 +1125,7 @@ validate_whole_disk_name_or_path() {
 
   try_silent_with_exit \
     "camcontrol identify ${whole_disk_name_or_path} 1> /dev/null 2>&1" \
-    "\"${whole_disk_name_or_path}\" must be a valid whole disk" 255
+    "\"${whole_disk_name_or_path}\" should be a valid whole disk" 255
 }
 
 validate_string_is_unsigned_integer() {
@@ -1133,10 +1133,10 @@ validate_string_is_unsigned_integer() {
 
   try_silent_with_exit \
     "test ! -z ${str}" \
-    "\"${str}\" must not be an empty string" 255
+    "\"${str}\" should not be an empty string" 255
   try_silent_with_exit \
     "test \"${str}\" -eq \"${str}\"" \
-    "\"${str}\" must be an unsigned integer" 255
+    "\"${str}\" should be an unsigned integer" 255
 }
 
 validate_partition_without_extension() {
@@ -1147,7 +1147,7 @@ validate_partition_without_extension() {
 
   try_silent_with_exit \
     "geom part status -s | sed 's/^[ ]*//' | tr -s ' ' | cut -d' ' -f1 | grep -w ${part_name} 1> /dev/null 2>&1" \
-    "\"${part_name}\" must be a valid partition" 255
+    "\"${part_name}\" should be a valid partition" 255
 }
 
 validate_active_device_in_vdev() {
@@ -1156,7 +1156,7 @@ validate_active_device_in_vdev() {
 
   try_silent_with_exit \
     "zpool list -v -P ${pool} | grep -w \"${device}\" 1> /dev/null" \
-    "\"${device}\" must be an active zfs device in a vdev in pool \"${pool}\"" 255
+    "\"${device}\" should be an active zfs device in a vdev in pool \"${pool}\"" 255
 }
 
 validate_not_active_device_in_vdev() {
@@ -1164,7 +1164,7 @@ validate_not_active_device_in_vdev() {
 
   try_silent_with_exit \
     "! zpool list -v -P | grep -w \"${device}\" 1> /dev/null" \
-    "\"${device}\" must not be an active zfs device in a vdev" 255
+    "\"${device}\" should not be an active zfs device in a vdev" 255
 }
 
 validate_not_active_non_cache_device_in_vdev() {
@@ -1173,7 +1173,7 @@ validate_not_active_non_cache_device_in_vdev() {
 
   try_silent_with_exit \
     "! zpool get -H -p -o value path ${pool} all-vdevs 2> /dev/null | grep -w \"${device_path}\" 1> /dev/null 2>&1" \
-    "disk \"${device_path}\" is a normal zfs device in pool \"${pool}\" - not a read/write cache disk" 255
+    "disk \"${device_path}\" should not be normal zfs device in pool \"${pool}\" (it should be a read/write cache disk)" 255
 }
 
 # shellcheck disable=SC2317
@@ -1182,7 +1182,7 @@ validate_item_is_full_disk() {
 
   try_silent_with_exit \
     "camcontrol identify ${item} 1> /dev/null 2>&1" \
-    "\"${item}\" must be a full disk, not a disk partition" 255
+    "\"${item}\" should be a full disk, not a disk partition" 255
 }
 
 validate_item_is_not_full_disk() {
@@ -1190,7 +1190,7 @@ validate_item_is_not_full_disk() {
 
   try_silent_with_exit \
     "! camcontrol identify ${item} 1> /dev/null 2>&1" \
-    "\"${item}\" must be a partition, not a path to a full disk" 255
+    "\"${item}\" should be a partition, not a path to a full disk" 255
 }
 
 validate_file_has_extension() {
@@ -1239,10 +1239,10 @@ validate_gpt_partition_label() {
 
   try_silent_with_exit \
     "test -z \"${part_label_path##/dev/gpt/*}\"" \
-    "GPT partition label \"${part_label_path}\" is not a partition" 255
+    "GPT partition label \"${part_label_path}\" should be a partition" 255
   try_silent_with_exit \
     "test -e \"${part_label_path}\"" \
-    "GPT partition label \"${part_label_path}\" does not exist in filesystem" 255
+    "GPT partition label \"${part_label_path}\" should exist in filesystem" 255
 }
 
 validate_not_gpt_partition_label() {
@@ -1250,7 +1250,7 @@ validate_not_gpt_partition_label() {
 
   try_silent_with_exit \
     "! test -z \"${path##/dev/gpt/*}\"" \
-    "GPT partition label \"${path}\" should not exist" 255
+    "GPT partition label \"${path}\" should not exist as a partition" 255
 }
 
 validate_zfs_vdev() {
@@ -1259,7 +1259,7 @@ validate_zfs_vdev() {
 
   try_silent_with_exit \
     "zpool get -H -o value parent ${pool} ${vdev_name} 2> /dev/null | grep -w ${pool} 1> /dev/null 2>&1" \
-    "\"${vdev_name}\" is not a top-level single-disk or mirrror vdev of pool \"${pool}\"" 255
+    "\"${vdev_name}\" should be a top-level-single-disk-vdev or mirrror-vdev of pool \"${pool}\"" 255
 }
 
 validate_pool_has_read_cache_disk() {
@@ -1268,7 +1268,7 @@ validate_pool_has_read_cache_disk() {
   read_cache_vdev_name="cache"
   try_silent_with_exit \
     "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep -w ${read_cache_vdev_name} 1> /dev/null 2>&1" \
-    "read cache does not exist in pool \"${pool}\" (did you specify the correct pool?)" 255
+    "read cache should exist in pool \"${pool}\" (did you specify the correct pool?)" 255
 }
 
 validate_pool_has_write_cache_disk() {
@@ -1277,7 +1277,7 @@ validate_pool_has_write_cache_disk() {
   write_cache_vdev_name="log"
   try_silent_with_exit \
     "zpool list -v -o name ${pool} 2> /dev/null | cut -d' ' -f1 | grep -w ${write_cache_vdev_name} 1> /dev/null 2>&1" \
-    "write cache does not exist in pool \"${pool}\" (did you specify the correct pool?)" 255
+    "write cache should exist in pool \"${pool}\" (did you specify the correct pool?)" 255
 }
 
 check_running_as_root() {
@@ -1463,7 +1463,7 @@ print_path_to_zfs_geli_ecrypted_partition() {
   path_to_zfs_geli_enc_part="${path_to_part_without_geli_ext}.eli"
   validate_zfs_geli_ecrypted_partition \
     "${path_to_zfs_geli_enc_part}" \
-    "\"${path_to_zfs_geli_enc_part}\" is not a valid GELI-encrypted partition"
+    "\"${path_to_zfs_geli_enc_part}\" should be a valid GELI-encrypted partition"
   printf "%s" "${path_to_zfs_geli_enc_part}"
 }
 
