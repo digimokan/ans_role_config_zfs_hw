@@ -1720,22 +1720,14 @@ format_partitions_on_new_root_mirror_disk() {
 configure_legacy_bios_partition() {
   # ref: https://wiki.freebsd.org/RootOnZFS/GPTZFSBoot
   new_whole_disk_path="${1}"
-  # Note: may be disk partition, or GPT label pointing to disk partition
-  # existing_zfs_part_device_path="${2}"
 
   new_bios_partition_path="$(print_path_to_legacy_bios_partition "${new_whole_disk_path}")"
-  # existing_whole_disk_path="$(print_whole_disk_path "${existing_zfs_part_device_path}")"
-  # existing_bios_partition_path="$(print_path_to_legacy_bios_partition "${existing_whole_disk_path}")"
   new_gpt_part_label="$(print_gpt_legacy_bios_part_label "${new_whole_disk_path}")"
   bios_partition_number="$(print_legacy_bios_partition_number "${new_whole_disk_path}")"
 
   do_silent_print_and_ignore_err \
     "zpool labelclear -f ${new_bios_partition_path}" \
     "removing ZFS label info from new disk legacy BIOS disk partition ${new_bios_partition_path}"
-
-  # try_silent_print_with_exit \
-  #   "dd if=${existing_bios_partition_path} of=${new_bios_partition_path} bs=4k" \
-  #   "copying legacy BIOS partition from ${existing_bios_partition_path} to ${new_bios_partition_path}" 20
 
   try_silent_print_with_exit \
     "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${bios_partition_number} ${new_whole_disk_path}" \
@@ -1851,7 +1843,6 @@ configure_boot_partitions_on_new_root_mirror_disk() {
   fi
 
   # Note: per above comments, a UEFI partitioning scheme also has BIOS partition
-  # configure_legacy_bios_partition "${whole_disk_path}" "${existing_zfs_part_device_path}"
   configure_legacy_bios_partition "${whole_disk_path}"
 }
 
