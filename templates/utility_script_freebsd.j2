@@ -1738,7 +1738,7 @@ configure_legacy_bios_partition() {
   #   "copying legacy BIOS partition from ${existing_bios_partition_path} to ${new_bios_partition_path}" 20
 
   try_silent_print_with_exit \
-    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${bios_partition_number} ${new_bios_partition_path}" \
+    "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i ${bios_partition_number} ${new_whole_disk_path}" \
     "installing protective MBR and adding ZFS bootcode on ${new_bios_partition_path}" 20
 
   try_silent_print_with_exit \
