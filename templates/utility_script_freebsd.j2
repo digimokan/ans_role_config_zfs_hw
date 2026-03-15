@@ -160,7 +160,7 @@ print_usage() {
   printf "  -T <device_path>, --device=<device_path>\n"
   printf "      any kind of device (whole disk, partition, etc) that is NOT an active zfs device in a vdev\n"
   printf "  -K <disk_path>, --whole-disk=<disk_path>\n"
-  printf "      a path to a whole disk\n"
+  printf "      an absolute path to a whole disk\n"
   printf "  -V <vdev_name>, --zfs-vdev=<vdev_name>\n"
   printf "      a zfs vdev (could be single disk, or a mirror containing multiple devices)\n"
   printf "  -M <path>, --permanent-mount-point=<path>\n"
@@ -1138,6 +1138,14 @@ validate_whole_disk_name_or_path() {
     "\"${whole_disk_name_or_path}\" should be a valid whole disk" 255
 }
 
+validate_string_is_full_path() {
+  str="${1}"
+
+  try_silent_with_exit \
+    "test -e \"${str}\" && test \"${str#/}\" != \"${str}\"" \
+    "\"${str}\" should be a full, absolute path on the system" 255
+  }
+
 validate_string_is_unsigned_integer() {
   str="${1}"
 
@@ -1342,6 +1350,7 @@ check_whole_disk_option() {
     quit_with_err_msg "\"--whole-disk\" option must be specified" 255
   fi
   validate_whole_disk_name_or_path "${NEW_DISK_PATH}"
+  validate_string_is_full_path "${NEW_DISK_PATH}"
 }
 
 check_vdev_option() {
