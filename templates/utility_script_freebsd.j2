@@ -17,8 +17,8 @@ PROG_NAME="$(basename "${0}")"
 readonly PROG_NAME
 DEFAULT_POOL='{{ cfg_zfs_hw_default_pool }}'
 readonly DEFAULT_POOL
-DEFAULT_PERM_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_permanent_base_mount_dir }}'
-readonly DEFAULT_PERM_MOUNT_POINT_BASE
+DEFAULT_PERM_MOUNT_POINT='{{ cfg_zfs_hw_default_permanent_mount_dir }}'
+readonly DEFAULT_PERM_MOUNT_POINT
 DEFAULT_TEMP_MOUNT_POINT_BASE='{{ cfg_zfs_hw_default_temp_base_mount_dir }}'
 readonly DEFAULT_TEMP_MOUNT_POINT_BASE
 SMARTCTL_CMD='{{ cfg_zfs_hw_smartctl_cmd }}'
@@ -75,7 +75,7 @@ print_usage() {
     i=$((i + 1))
   done
 
-  perm_mountpt="${DEFAULT_PERM_MOUNT_POINT_BASE}/pool_name/"
+  perm_mountpt="${DEFAULT_PERM_MOUNT_POINT}/"
   temp_mountpt="${DEFAULT_TEMP_MOUNT_POINT_BASE}/temp_name/"
 
   printf "NORMAL OPERATIONS:\n"
@@ -1533,12 +1533,11 @@ print_whole_disk_path() {
 }
 
 print_perm_mount_point() {
-  perm_mount_point_base="${1}"
+  default_perm_mount_point="${1}"
   user_specified_perm_mount_point="${2}"
-  pool="${3}"
 
   if [ "${user_specified_perm_mount_point}" = '' ]; then
-    printf "%s/%s" "${perm_mount_point_base}" "${pool}"
+    printf "%s" "${default_perm_mount_point}"
   else
     printf "%s" "${user_specified_perm_mount_point}"
   fi
@@ -2022,7 +2021,7 @@ do_create_storage_pool() {
   create_single_zfs_partition "${NEW_DISK_PATH}"
   gpt_part_label_path="$(print_gpt_zfs_part_label_path "${NEW_DISK_PATH}")"
 
-  mount_point="$(print_perm_mount_point "${DEFAULT_PERM_MOUNT_POINT_BASE}" "${PERM_MOUNT_POINT}" "${POOL}")"
+  mount_point="$(print_perm_mount_point "${DEFAULT_PERM_MOUNT_POINT}" "${PERM_MOUNT_POINT}")"
   try_silent_print_with_exit \
     "zpool create -f -m \"${mount_point}\" ${POOL} \"${gpt_part_label_path}\"" \
     "creating new storage pool from single disk \"${NEW_DISK_PATH}\", mounted at \"${mount_point}\"," 80

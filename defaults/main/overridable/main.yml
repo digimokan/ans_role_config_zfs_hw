@@ -2,8 +2,8 @@
 cfg_zfs_hw_default_pool: 'zroot'
 
 # default mount point for mounting storage pools permanently
-cfg_zfs_hw_default_permanent_base_mount_dir: '/data'
+cfg_zfs_hw_default_permanent_mount_dir: '/data'
 
-# default mount point for mounting storage pools temporarily
+# default mount point base dir for mounting storage pools temporarily
 cfg_zfs_hw_default_temp_base_mount_dir: '/mnt'
 
