@@ -5,5 +5,5 @@
       job_user: "root"
       job_minute: "0"
       job_hour: "{{ cfg_zfs_hw_default_pool_daily_scrub_hour }}"
-      job_cmd: "zpool scrub --all"
+      job_cmd: "{{ cfg_zfs_hw_zpool_cmd }} scrub --all"
 

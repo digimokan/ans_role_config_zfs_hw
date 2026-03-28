@@ -1,0 +1,6 @@
+- name: "Configure ZFS utilities"
+  ansible.builtin.include_tasks: configure/main.yml
+
+- name: "Export vars for other roles"
+  ansible.builtin.include_tasks: export_vars/main.yml
+

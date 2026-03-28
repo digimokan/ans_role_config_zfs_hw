@@ -72,7 +72,7 @@ Vars that must be defined when including the role in the playbook:
 
 Vars with default values, which can be overridden in the playbook:
 
-  * [overridable](../defaults/main/overridable/main.yml)
+  * [overridable](../defaults/main/overridable/)
 
 Vars defined by this role, exported with `public: true`, for use in other roles:
 

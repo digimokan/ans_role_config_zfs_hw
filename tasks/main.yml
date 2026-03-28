@@ -1,6 +1,18 @@
-- name: "Configure ZFS utilities"
-  ansible.builtin.include_tasks: configure/main.yml
+- name: "Run all role tasks for Ubuntu"
+  ansible.builtin.include_tasks: run_all_tasks.yml
+  vars:
+    cfg_zfs_hw_zpool_cmd: "{{ cfg_zfs_hw_linux_zpool_cmd }}"
+  when: ansible_distribution == "Ubuntu"
 
-- name: "Export vars for other roles"
-  ansible.builtin.include_tasks: export_vars/main.yml
+- name: "Run all role tasks for Arch Linux"
+  ansible.builtin.include_tasks: run_all_tasks.yml
+  vars:
+    cfg_zfs_hw_zpool_cmd: "{{ cfg_zfs_hw_linux_zpool_cmd }}"
+  when: ansible_os_family == "Archlinux"
+
+- name: "Run all role tasks for FreeBSD"
+  ansible.builtin.include_tasks: run_all_tasks.yml
+  vars:
+    cfg_zfs_hw_zpool_cmd: "{{ cfg_zfs_hw_freebsd_zpool_cmd }}"
+  when: ansible_os_family == "FreeBSD"
 

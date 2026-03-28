@@ -1,0 +1,4 @@
+# OS-specific command path for the 'zpool' command
+cfg_zfs_hw_linux_zpool_cmd: '/usr/sbin/zpool'
+cfg_zfs_hw_freebsd_zpool_cmd: '/sbin/zpool'
+
