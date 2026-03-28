@@ -7,3 +7,7 @@ cfg_zfs_hw_default_permanent_mount_dir: '/data'
 # default mount point base dir for mounting storage pools temporarily
 cfg_zfs_hw_default_temp_base_mount_dir: '/mnt'
 
+# for zfs_hw_scrub_all_pools_cron_job, run the scrub at this hour
+# NOTE: '0' for midnight, '3' for 3 am, '15' for 3 pm, etc
+cfg_zfs_hw_default_pool_daily_scrub_hour: '4'
+

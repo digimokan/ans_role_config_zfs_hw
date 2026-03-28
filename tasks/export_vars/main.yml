@@ -1,0 +1,9 @@
+- name: "Define export var 'zfs_hw_scrub_all_pools_cron_job'"
+  ansible.builtin.set_fact:
+    zfs_hw_scrub_all_pools_cron_job:
+      job_label: "zfs_hw_scrub_all_pools_cron_job"
+      job_user: "root"
+      job_minute: "0"
+      job_hour: "{{ cfg_zfs_hw_default_pool_daily_scrub_hour }}"
+      job_cmd: "zpool scrub --all"
+
