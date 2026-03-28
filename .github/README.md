@@ -59,6 +59,7 @@ Install and configure ZFS hardware: disks, pools, vdevs, and devices.
        - name: "Install and configure ZFS hardware: disks, pools, vdevs, and devices"
          ansible.builtin.include_role:
            name: ans_role_config_zfs_hw
+           public: true
          vars:
            cfg_zfs_hw_smartctl_cmd: "smartctl"
    ```
